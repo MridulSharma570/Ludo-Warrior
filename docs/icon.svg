@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#071D42"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF066"/>
+      <stop offset="50%" stop-color="#FFCB05"/>
+      <stop offset="100%" stop-color="#CA8A04"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" stroke="url(#gold)" stroke-width="20"/>
+  <!-- 4 Ludo Quadrants -->
+  <rect x="64" y="64" width="160" height="160" rx="28" fill="#ED1C24" stroke="#FFFFFF" stroke-width="10"/>
+  <rect x="288" y="64" width="160" height="160" rx="28" fill="#00A651" stroke="#FFFFFF" stroke-width="10"/>
+  <rect x="64" y="288" width="160" height="160" rx="28" fill="#0072BC" stroke="#FFFFFF" stroke-width="10"/>
+  <rect x="288" y="288" width="160" height="160" rx="28" fill="#FFCB05" stroke="#FFFFFF" stroke-width="10"/>
+  <!-- Center Royal Crown -->
+  <circle cx="256" cy="256" r="96" fill="#0A224A" stroke="url(#gold)" stroke-width="14"/>
+  <path d="M192 292 L208 214 L256 248 L304 214 L320 292 Z" fill="url(#gold)" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+</svg>
