@@ -1,0 +1,20 @@
+{
+  "name": "Ludo Warrior — Classic 2 to 6 Player Ludo",
+  "short_name": "Ludo Warrior",
+  "description": "Ad-Free Ludo King Style Board Game for Android, iOS & PC (2, 3, 4, 5 & 6 Players)",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#071D42",
+  "theme_color": "#071D42",
+  "categories": ["games", "board", "family"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  20% { transform: translate(-5px, 3px) rotate(-0.8deg); }
+  40% { transform: translate(5px, -3px) rotate(0.8deg); }
+  60% { transform: translate(-3px, -2px) rotate(-0.4deg); }
+  80% { transform: translate(3px, 2px) rotate(0.4deg); }
+}
+
+@keyframes goldPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 230, 0, 0.75), inset 0 2px 3px rgba(255, 255, 255, 0.45), 0 6px 12px rgba(0, 0, 0, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(255, 230, 0, 1), inset 0 2px 4px rgba(255, 255, 255, 0.65), 0 6px 16px rgba(0, 0, 0, 0.65);
+  }
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+  background-color: #071D42;
+  color: #FFFFFF;
+}
+
+/* Android Safe Area Helpers */
+.android-safe-top {
+  padding-top: max(0.35rem, env(safe-area-inset-top, 0px));
+}
+
+.android-safe-bottom {
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+}
+
+.android-btn-press {
+  transition: transform 0.1s cubic-bezier(0.22, 1, 0.36, 1), filter 0.1s ease;
+}
+
+.android-btn-press:active {
+  transform: scale(0.95) translateY(2px);
+  filter: brightness(1.08);
+}
+
+/* Custom sleek dark scrollbar inside modals */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 203, 5, 0.45);
+  border-radius: 9999px;
+}
