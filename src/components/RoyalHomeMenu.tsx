@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AIDifficulty,
   BoardThemeId,
@@ -71,6 +71,31 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
     orange: 'Player 6',
   });
   const [editingProfile, setEditingProfile] = useState(false);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallOrDownload = async () => {
+    soundEngine.playClick();
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      try {
+        await deferredInstallPrompt.userChoice;
+      } catch {
+        // ignore
+      }
+      setDeferredInstallPrompt(null);
+      return;
+    }
+    window.open('https://github.com/MridulSharma570/Ludo-Warrior/releases/latest', '_blank', 'noopener,noreferrer');
+  };
 
   const availableColors =
     playerCount === 5
@@ -344,14 +369,13 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
       </main>
 
       <footer className="relative z-10 flex flex-col items-center gap-1 pb-2 text-[11px] text-sky-200/80 font-bold">
-        <a
-          href="https://github.com/MridulSharma570/Ludo-Warrior/releases/latest"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={handleInstallOrDownload}
           className="android-btn-press inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#0A224A] border border-[#FFCB05] text-[#FFCB05] text-[11px] font-black uppercase tracking-wider shadow"
         >
-          ⬇ Download / Install App (Android, PC & Web)
-        </a>
+          ⬇ {deferredInstallPrompt ? 'Install App to Device' : 'Download / Install App (Android, PC & Web)'}
+        </button>
         <span>4P Square • 5P Pentagonal • 6P Hexagonal Boards</span>
       </footer>
 
