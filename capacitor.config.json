@@ -1,0 +1,15 @@
+{
+  "appId": "com.ludowarrior.android",
+  "appName": "Ludo Warrior",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#071D42"
+  }
+}
