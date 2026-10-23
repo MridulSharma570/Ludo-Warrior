@@ -269,15 +269,11 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
       {/* Center Ludo King Style Crest & 4 Big Android Thumb-Friendly Mode Buttons */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-2 max-w-md mx-auto w-full">
         <div className="flex flex-col items-center text-center mb-5">
-          <div
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center mb-2 shadow-2xl"
-            style={{
-              background: 'linear-gradient(180deg, #FFF066 0%, #FFCB05 55%, #D97706 100%)',
-              border: '3px solid #FFFFFF',
-            }}
-          >
-            <Crown className="w-10 h-10 sm:w-12 sm:h-12 text-slate-950 fill-slate-950" />
-          </div>
+          <img
+            src="./icon-192.png"
+            alt="Ludo Warrior Icon"
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl mb-2 shadow-[0_8px_24px_rgba(0,0,0,0.65)] border-2 border-[#FFCB05]"
+          />
           <h1
             className="text-3xl sm:text-5xl font-black tracking-wider uppercase text-[#FFCB05] drop-shadow-[0_4px_0_#000000]"
             style={{ fontFamily: 'Cinzel, serif' }}
