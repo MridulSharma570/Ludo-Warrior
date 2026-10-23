@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - "arena/611c4122-ludo-warrior"
+      - "main"
 
 permissions:
   contents: read
