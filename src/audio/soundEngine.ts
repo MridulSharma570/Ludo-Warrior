@@ -1,14 +1,48 @@
-// Authentic Ludo King Clean Tactile Audio + Android Haptic Vibration Engine
-// Zero harsh static/white-noise: uses pure resonant pitched percussive envelopes
+// Authentic Original Ludo King Sampled Audio Engine + Android Haptic Vibration
+// Uses the real recorded Ludo King MP3 sound effects (dice_roll, pile_move, collide, safe_spot, home_win, game_start, ui)
+
+import { LUDO_KING_SFX_BASE64 } from './ludoKingSfxData';
+
+type SfxKey =
+  | 'dice_roll'
+  | 'pile_move'
+  | 'collide'
+  | 'safe_spot'
+  | 'home_win'
+  | 'game_start'
+  | 'ui';
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
+  private decodedBuffers: Partial<Record<SfxKey, AudioBuffer>> = {};
+  private htmlAudioPool: Partial<Record<SfxKey, HTMLAudioElement[]>> = {};
+  private decodingStarted: boolean = false;
+
   public enabled: boolean = true;
   public hapticsEnabled: boolean = true;
   public musicEnabled: boolean = false;
-  public volume: number = 0.85;
-  private musicTimer: number | null = null;
-  private musicStep: number = 0;
+  public volume: number = 0.92;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      this.initHtmlAudioFallbacks();
+    }
+  }
+
+  private initHtmlAudioFallbacks(): void {
+    const keys = Object.keys(LUDO_KING_SFX_BASE64) as SfxKey[];
+    for (const key of keys) {
+      const dataUri = `data:audio/mpeg;base64,${LUDO_KING_SFX_BASE64[key]}`;
+      const poolSize = key === 'pile_move' ? 4 : 2;
+      const pool: HTMLAudioElement[] = [];
+      for (let i = 0; i < poolSize; i++) {
+        const audio = new Audio(dataUri);
+        audio.preload = 'auto';
+        pool.push(audio);
+      }
+      this.htmlAudioPool[key] = pool;
+    }
+  }
 
   private getContext(): AudioContext | null {
     if (!this.enabled) return null;
@@ -23,7 +57,73 @@ class SoundEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+    if (this.ctx && !this.decodingStarted) {
+      this.decodingStarted = true;
+      this.decodeAllSfx(this.ctx);
+    }
     return this.ctx;
+  }
+
+  private decodeAllSfx(ctx: AudioContext): void {
+    const keys = Object.keys(LUDO_KING_SFX_BASE64) as SfxKey[];
+    for (const key of keys) {
+      try {
+        const b64 = LUDO_KING_SFX_BASE64[key];
+        const binStr = window.atob(b64);
+        const len = binStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binStr.charCodeAt(i);
+        }
+        ctx.decodeAudioData(
+          bytes.buffer.slice(0),
+          (decoded) => {
+            this.decodedBuffers[key] = decoded;
+          },
+          () => {}
+        );
+      } catch {
+        // Fallback to HTMLAudioPool if decodeAudioData fails
+      }
+    }
+  }
+
+  /**
+   * Play an original Ludo King MP3 sample with zero latency via Web Audio AudioBuffer
+   * (with automatic HTMLAudioElement fallback if Web Audio buffer is still decoding)
+   */
+  private playSample(key: SfxKey, gainScale: number = 1.0, playbackRate: number = 1.0): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const buf = this.decodedBuffers[key];
+
+    if (ctx && buf) {
+      const source = ctx.createBufferSource();
+      source.buffer = buf;
+      source.playbackRate.value = playbackRate;
+
+      const gain = ctx.createGain();
+      gain.gain.value = Math.min(1.0, this.volume * gainScale);
+
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0);
+      return;
+    }
+
+    // Immediate HTMLAudioElement fallback if decoded buffer is not ready yet
+    const pool = this.htmlAudioPool[key];
+    if (pool && pool.length > 0) {
+      const available = pool.find((a) => a.paused || a.ended) ?? pool[0];
+      try {
+        available.currentTime = 0;
+        available.volume = Math.min(1.0, this.volume * gainScale);
+        available.playbackRate = playbackRate;
+        available.play().catch(() => {});
+      } catch {
+        // Ignore autoplay restrictions
+      }
+    }
   }
 
   /**
@@ -49,191 +149,107 @@ class SoundEngine {
   }
 
   /**
-   * Helper: Clean resonant hollow plastic/wood knock (ZERO static noise)
-   */
-  private triggerCleanKnock(
-    delaySec: number,
-    startFreq: number,
-    endFreq: number,
-    durSec: number,
-    gainAmt: number,
-    oscType: OscillatorType = 'sine'
-  ): void {
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    const startTime = ctx.currentTime + delaySec;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = oscType;
-    osc.frequency.setValueAtTime(startFreq, startTime);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), startTime + durSec);
-
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(gainAmt * this.volume, startTime + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + durSec);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(startTime);
-    osc.stop(startTime + durSec + 0.005);
-  }
-
-  /**
-   * Clean Ludo King UI Button Tap + Android Micro-Haptic
+   * Original Ludo King UI Button Tap (`ui.mp3`)
    */
   public playClick(): void {
     this.vibrate(8);
-    this.triggerCleanKnock(0, 620, 340, 0.035, 0.32, 'sine');
+    this.playSample('ui', 0.9, 1.0);
   }
 
   public playMenuSelect(): void {
     this.vibrate(12);
-    this.triggerCleanKnock(0, 520, 680, 0.045, 0.35, 'sine');
-  }
-
-  public playModeStart(): void {
-    this.vibrate([15, 25, 22]);
-    this.triggerCleanKnock(0, 523.25, 523.25, 0.07, 0.32, 'triangle');
-    this.triggerCleanKnock(0.065, 659.25, 659.25, 0.07, 0.35, 'triangle');
-    this.triggerCleanKnock(0.13, 783.99, 783.99, 0.12, 0.4, 'triangle');
+    this.playSample('ui', 1.0, 1.0);
   }
 
   /**
-   * Authentic Ludo King 3D Dice Rattle & Roll + Android Tactile Rattle
-   * 7 crisp, hollow plastic-cube tumbles with natural deceleration — zero static noise
+   * Original Ludo King Match Start Sound (`game_start.mp3`)
+   */
+  public playModeStart(): void {
+    this.vibrate([15, 25, 22]);
+    this.playSample('game_start', 0.95, 1.0);
+  }
+
+  /**
+   * Original Ludo King Dice Roll Sound (`dice_roll.mp3`)
    */
   public playDiceRoll(): void {
     this.vibrate([14, 28, 12, 32, 18]);
-    const bounceTimes = [0, 0.042, 0.084, 0.128, 0.176, 0.228, 0.285];
-    const baseFreqs = [740, 660, 790, 620, 720, 680, 580];
-
-    bounceTimes.forEach((t, i) => {
-      const pitchJitter = 0.96 + Math.random() * 0.08;
-      const f1 = baseFreqs[i] * pitchJitter;
-      const amp = (i === bounceTimes.length - 1 ? 0.48 : 0.36) * (0.85 + (i / 7) * 0.15);
-
-      // Hollow plastic cube body
-      this.triggerCleanKnock(t, f1, f1 * 0.38, 0.026, amp, 'triangle');
-      // Crisp rim tap harmonic
-      this.triggerCleanKnock(t, f1 * 1.85, f1 * 0.75, 0.014, amp * 0.45, 'sine');
-    });
+    this.playSample('dice_roll', 1.0, 1.0);
   }
 
   /**
-   * Authentic Ludo King Pawn Hop ("Pop-Bloop" wooden/plastic token step)
+   * Original Ludo King Piece Moving Sound (`pile_move.mp3`)
    */
-  public playTokenStep(stepIndex: number = 0): void {
+  public playTokenStep(_stepIndex: number = 0): void {
     this.vibrate(10);
-    const subtlePitch = 1 + Math.min(stepIndex, 5) * 0.025;
-    // Soft board touch
-    this.triggerCleanKnock(0, 240 * subtlePitch, 110, 0.038, 0.38, 'sine');
-    // Signature Ludo King bubbly pawn pop
-    this.triggerCleanKnock(0.003, 390 * subtlePitch, 640 * subtlePitch, 0.048, 0.44, 'sine');
+    this.playSample('pile_move', 1.0, 1.0);
   }
 
   /**
-   * Smooth descending marimba tick as a captured pawn glides back to its yard
+   * Captured piece stepping backward to its home yard
    */
-  public playRewindTick(stepIdx: number = 0): void {
-    const freq = Math.max(340, 820 - (stepIdx % 16) * 28);
-    this.triggerCleanKnock(0, freq, freq * 0.75, 0.028, 0.22, 'sine');
+  public playRewindTick(_stepIdx: number = 0): void {
+    this.playSample('pile_move', 0.55, 1.35);
   }
 
   /**
-   * Rolling a 6 — Bright Golden Chime + Double Haptic Pulse
+   * Rolling a 6
    */
   public playRollSix(): void {
     this.vibrate([20, 25, 30]);
-    this.triggerCleanKnock(0, 659.25, 659.25, 0.08, 0.4, 'triangle');
-    this.triggerCleanKnock(0.07, 880.0, 880.0, 0.14, 0.46, 'triangle');
+    this.playSample('safe_spot', 0.9, 1.08);
   }
 
   /**
-   * Capturing an opponent pawn — Punchy Ludo King Impact + Heavy Haptic
+   * Original Ludo King Piece Capture / Cut Sound (`collide.mp3`)
    */
   public playCaptureClash(): void {
     this.vibrate([45, 30, 65]);
-    this.triggerCleanKnock(0, 480, 120, 0.09, 0.55, 'triangle');
-    this.triggerCleanKnock(0.04, 720, 260, 0.11, 0.48, 'sine');
+    this.playSample('collide', 1.0, 1.0);
   }
 
   /**
-   * Landing on a Star / Safe Square
+   * Original Ludo King Safe Star Spot Sound (`safe_spot.mp3`)
    */
   public playSafeZoneShield(): void {
     this.vibrate(15);
-    this.triggerCleanKnock(0, 587.33, 880.0, 0.09, 0.35, 'sine');
+    this.playSample('safe_spot', 1.0, 1.0);
   }
 
   /**
-   * Pawn reaching the Center Home Triangle
+   * Original Ludo King Piece Reaching Home Triangle (`home_win.mp3`)
    */
   public playCitadelAscend(): void {
     this.vibrate([25, 25, 45]);
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, idx) => {
-      this.triggerCleanKnock(idx * 0.065, freq, freq, 0.12, 0.42, 'triangle');
-    });
+    this.playSample('home_win', 1.0, 1.0);
   }
 
   /**
-   * Match Victory Fanfare
+   * Original Ludo King Match Victory Cheer (`cheer.mp3` + `home_win.mp3`)
    */
   public playVictoryFanfare(): void {
     this.vibrate([60, 40, 60, 40, 120]);
-    const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
-    const delays = [0, 0.09, 0.18, 0.27, 0.42, 0.54];
-    notes.forEach((freq, idx) => {
-      this.triggerCleanKnock(delays[idx], freq, freq, 0.18, 0.48, 'triangle');
-    });
+    this.playSample('home_win', 1.0, 1.0);
+    if (typeof window !== 'undefined') {
+      try {
+        const cheer = new Audio('./sfx/cheer.mp3');
+        cheer.volume = Math.min(1.0, this.volume * 0.9);
+        cheer.play().catch(() => {});
+      } catch {
+        // ignore
+      }
+    }
   }
 
-  public startMusic(): void {
-    // Kept off by default so gameplay is pure Ludo King SFX
-  }
+  public startMusic(): void {}
 
   public stopMusic(): void {
     this.musicEnabled = false;
-    if (this.musicTimer !== null) {
-      window.clearInterval(this.musicTimer);
-      this.musicTimer = null;
-    }
   }
 
   public toggleMusic(): boolean {
-    if (this.musicEnabled) {
-      this.stopMusic();
-      return false;
-    }
-    this.musicEnabled = true;
-    const ctx = this.getContext();
-    if (!ctx) return false;
-
-    const chords = [
-      [261.63, 329.63, 392.0],
-      [293.66, 369.99, 440.0],
-      [329.63, 392.0, 493.88],
-      [261.63, 329.63, 392.0],
-    ];
-
-    if (this.musicTimer !== null) {
-      window.clearInterval(this.musicTimer);
-    }
-
-    this.musicTimer = window.setInterval(() => {
-      if (!this.musicEnabled || !this.enabled) return;
-      const chord = chords[this.musicStep % chords.length];
-      chord.forEach((f, i) => {
-        this.triggerCleanKnock(i * 0.04, f, f, 0.45, 0.08, 'sine');
-      });
-      this.musicStep = (this.musicStep + 1) % chords.length;
-    }, 1200);
-
-    return true;
+    this.musicEnabled = !this.musicEnabled;
+    return this.musicEnabled;
   }
 }
 

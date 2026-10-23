@@ -15,6 +15,8 @@ import {
   executeTokenMove,
   getCaptureRewindCoords,
   getStepByStepCoords,
+  getUniversalIndex,
+  isSafeUniversalIndex,
   selectBestAIMove,
 } from './engine/ludoEngine';
 import {
@@ -386,6 +388,15 @@ export const App: React.FC = () => {
           if (reachedCitadel) {
             soundEngine.playCitadelAscend();
             spawnClashEffect(finalCoord, color, 'HOME!', 'citadel');
+          } else {
+            const destUIdx = getUniversalIndex(color, toStep, finalState.boardType);
+            if (
+              destUIdx !== null &&
+              toStep > 0 &&
+              isSafeUniversalIndex(destUIdx, finalState.boardType)
+            ) {
+              soundEngine.playSafeZoneShield();
+            }
           }
 
           setGameState(finalState);
