@@ -693,6 +693,7 @@ export function applyDiceRoll(
   if (state.consecutiveSixes >= 3) {
     state.consecutiveSixes = 0;
     state.validTokenIndices = [];
+    state.diceValue = null;
     state.currentTurn = getNextTurnColor(state);
     state.turnPhase = 'ROLL';
     state.turnNumber += 1;
@@ -709,6 +710,7 @@ export function applyDiceRoll(
 
   if (validIndices.length === 0) {
     state.consecutiveSixes = 0;
+    state.diceValue = null;
     state.currentTurn = getNextTurnColor(state);
     state.turnPhase = 'ROLL';
     state.turnNumber += 1;

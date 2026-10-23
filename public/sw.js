@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ludo-warrior-v1';
-const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
+const CACHE_NAME = 'ludo-warrior-v2';
+const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

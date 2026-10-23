@@ -212,8 +212,8 @@ export const PlayerHudCard: React.FC<PlayerHudCardProps> = ({
         </div>
       </div>
 
-      {/* 3. Bouncing 3D Golden-Orange Arrow pointing at Active Player's Dice Tray */}
-      {isCurrentTurn && !isCompact3Col && (
+      {/* 3. Bouncing 3D Golden-Orange Arrow pointing at Active Player's Dice Tray when ready to roll */}
+      {isCurrentTurn && turnPhase === 'ROLL' && !diceRolling && canHumanRoll && !isCompact3Col && (
         <GoldenTurnArrow pointDir={align === 'right' ? 'right' : 'left'} />
       )}
     </div>

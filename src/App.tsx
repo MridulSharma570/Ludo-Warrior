@@ -529,6 +529,7 @@ export const App: React.FC = () => {
       return;
     }
 
+    const rollingColor = gameState.currentTurn;
     soundEngine.playDiceRoll();
     setDiceRolling(true);
 
@@ -541,6 +542,24 @@ export const App: React.FC = () => {
         soundEngine.playCaptureClash();
       } else if (result.rolled === 6) {
         soundEngine.playRollSix();
+      }
+
+      // If no valid moves (or three 6s forfeit), show the rolled number inside the rolling player's tray for 650ms first (just like Ludo King) before passing the turn
+      if (result.validTokenIndices.length === 0 || result.threeSixesForfeit) {
+        isAnimatingRef.current = true;
+        setGameState((prev) => ({
+          ...prev,
+          currentTurn: rollingColor,
+          diceValue: result.rolled,
+          turnPhase: 'MOVE',
+          validTokenIndices: [],
+        }));
+
+        setTimeout(() => {
+          isAnimatingRef.current = false;
+          setGameState(clonedState);
+        }, 650);
+        return;
       }
 
       setGameState(clonedState);
@@ -937,7 +956,7 @@ export const App: React.FC = () => {
             </button>
 
             {/* Quick Controls Row (Sound, Vibration, Restart, Online, Rules, Fullscreen) */}
-            <div className="grid grid-cols-5 gap-1 pt-1 border-t border-white/10">
+            <div className="grid grid-cols-6 gap-1 pt-1 border-t border-white/10">
               <button
                 type="button"
                 onClick={toggleSound}
@@ -989,6 +1008,14 @@ export const App: React.FC = () => {
               >
                 <BookOpen className="w-4 h-4" />
               </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="p-1.5 rounded-lg bg-white/10 flex items-center justify-center text-white"
+                title="Fullscreen"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Exit (Exact Ludo King Menu Item) */}
@@ -1031,26 +1058,6 @@ export const App: React.FC = () => {
           </div>
         </button>
       </div>
-
-      {/* 4. Bottom-Right "NO ADS" Badge (Matches Image 2 & Toggles Fullscreen on Tap) */}
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        className="fixed bottom-3 right-3 z-30 android-btn-press w-13 h-13 rounded-full flex flex-col items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.65)]"
-        style={{
-          background: 'radial-gradient(circle at 35% 30%, #E11D48 0%, #881337 70%, #4C0519 100%)',
-          border: '2.5px solid #CBD5E1',
-        }}
-        title="100% Ad-Free (Tap for Fullscreen)"
-      >
-        <span className="text-[11px] font-black leading-none text-white tracking-tighter drop-shadow">
-          NO
-        </span>
-        <span className="text-[11px] font-black leading-none text-white tracking-tighter drop-shadow">
-          ADS
-        </span>
-        <Maximize2 className="w-2.5 h-2.5 text-amber-300 mt-0.5 opacity-80" />
-      </button>
 
       {/* Modals */}
       {showSetupModal && (
