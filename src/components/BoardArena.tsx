@@ -48,7 +48,8 @@ const CleanStar: React.FC<{
   innerR: number;
   fill: string;
   stroke?: string;
-}> = ({ cx, cy, outerR, innerR, fill, stroke = 'none' }) => {
+  strokeWidth?: number;
+}> = ({ cx, cy, outerR, innerR, fill, stroke = '#222222', strokeWidth = 2.4 }) => {
   const pts: string[] = [];
   for (let i = 0; i < 10; i++) {
     const r = i % 2 === 0 ? outerR : innerR;
@@ -60,14 +61,49 @@ const CleanStar: React.FC<{
       points={pts.join(' ')}
       fill={fill}
       stroke={stroke}
-      strokeWidth={stroke !== 'none' ? 2 : 0}
+      strokeWidth={strokeWidth}
       strokeLinejoin="round"
     />
   );
 };
 
 /**
- * Clean, Crisp Ludo King Pawn (Teardrop Map-Pin with White Center Circle)
+ * Authentic Ludo King Line Arrow (→, ↓, ←, ↑) at Home-Stretch Entrances
+ */
+const LudoKingLineArrow: React.FC<{
+  cx: number;
+  cy: number;
+  dir: 'right' | 'down' | 'left' | 'up';
+  color: string;
+}> = ({ cx, cy, dir, color }) => {
+  const rot =
+    dir === 'right' ? 0 : dir === 'down' ? 90 : dir === 'left' ? 180 : -90;
+  return (
+    <g transform={`translate(${cx}, ${cy}) rotate(${rot})`}>
+      <line
+        x1={-24}
+        y1={0}
+        x2={20}
+        y2={0}
+        stroke={color}
+        strokeWidth={5.5}
+        strokeLinecap="round"
+      />
+      <polyline
+        points="6,-14 22,0 6,14"
+        fill="none"
+        stroke={color}
+        strokeWidth={5.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </g>
+  );
+};
+
+/**
+ * Exact Original Ludo King Pawn:
+ * Large 3D White/Silver Teardrop Pin Body + Recessed Colored 3D Sphere in the Head
  */
 const LudoKingPawn: React.FC<{
   color: FactionColor;
@@ -90,8 +126,6 @@ const LudoKingPawn: React.FC<{
   showStackBadge,
   onClick,
 }) => {
-  const f = FACTIONS[color];
-
   return (
     <g
       transform={`translate(${cx}, ${cy}) scale(${scale})`}
@@ -103,101 +137,109 @@ const LudoKingPawn: React.FC<{
       }}
       className={isMovable ? 'cursor-pointer' : 'pointer-events-none'}
     >
-      {isMovable && <circle cx={0} cy={-26} r={62} fill="transparent" />}
+      {/* Large Touch Hit Target for Android Screens */}
+      {isMovable && <circle cx={0} cy={-34} r={64} fill="transparent" />}
 
-      {/* Subtle Movable Ring around Base */}
+      {/* Movable Highlight Ring Under Pawn */}
       {isMovable && (
         <circle
           cx={0}
           cy={2}
-          r={32}
-          fill="rgba(255, 203, 5, 0.28)"
-          stroke="#1E293B"
-          strokeWidth={3}
-          strokeDasharray="8 5"
+          r={36}
+          fill="rgba(255, 230, 0, 0.32)"
+          stroke="#FFFFFF"
+          strokeWidth={3.5}
+          strokeDasharray="9 5"
         >
           <animateTransform
             attributeName="transform"
             type="rotate"
             from="0 0 2"
             to="360 0 2"
-            dur="2.4s"
+            dur="2.2s"
             repeatCount="indefinite"
           />
         </circle>
       )}
 
-      {/* Ground Shadow */}
+      {/* Ground Drop Shadow */}
       <ellipse
         cx={0}
-        cy={9}
-        rx={Math.max(11, 21 - jumpHeight * 0.18)}
-        ry={Math.max(6, 11 - jumpHeight * 0.09)}
-        fill={`rgba(15, 23, 42, ${Math.max(0.16, 0.34 - jumpHeight * 0.003)})`}
+        cy={6}
+        rx={Math.max(12, 22 - jumpHeight * 0.16)}
+        ry={Math.max(6, 11 - jumpHeight * 0.08)}
+        fill={`rgba(0, 0, 0, ${Math.max(0.22, 0.42 - jumpHeight * 0.003)})`}
       />
 
-      {/* Pawn Body */}
+      {/* Pawn Body (Bounces gently when movable) */}
       <g transform={`translate(0, ${-jumpHeight})`} filter="url(#cleanPawnShadow)">
-        <ellipse
-          cx={0}
-          cy={5}
-          rx={18}
-          ry={10}
-          fill="#FFFFFF"
-          stroke="#1E293B"
-          strokeWidth={2.2}
-        />
+        {isMovable && jumpHeight === 0 && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values="0,0; 0,-9; 0,0"
+            dur="0.75s"
+            repeatCount="indefinite"
+          />
+        )}
 
+        {/* 1. Outer Glossy White / Silver-Grey Teardrop Pin Body (Exact Ludo King Silhouette) */}
         <path
-          d="M 0,7 C -13,-8 -29,-25 -29,-42 A 29,29 0 1,1 29,-42 C 29,-25 13,-8 0,7 Z"
-          fill={`url(#lkPawnGrad-${color})`}
-          stroke="#1E293B"
-          strokeWidth={2.6}
+          d="M 0,6 C -14,-11 -33,-30 -33,-50 A 33,33 0 1,1 33,-50 C 33,-30 14,-11 0,6 Z"
+          fill="url(#lkWhitePinBody)"
+          stroke="#262626"
+          strokeWidth={2.8}
           strokeLinejoin="round"
         />
 
+        {/* Subtle 3D Inner Highlight on White Pin */}
         <path
-          d="M 0,3 C -11,-10 -25,-25 -25,-42 A 25,25 0 1,1 25,-42 C 25,-25 11,-10 0,3 Z"
+          d="M 0,2 C -12,-13 -29,-30 -29,-50 A 29,29 0 1,1 29,-50 C 29,-30 12,-13 0,2 Z"
           fill="none"
-          stroke="rgba(255, 255, 255, 0.45)"
-          strokeWidth={1.6}
+          stroke="#FFFFFF"
+          strokeWidth={2}
+          opacity={0.9}
         />
 
-        {/* Iconic Ludo King 3D Recessed Top Cap (Rich Colored Dome + Specular Rim) */}
+        {/* 2. Inner Recessed Colored Sphere inside the Head (Exact Ludo King Detail) */}
         <circle
           cx={0}
-          cy={-42}
-          r={15}
-          fill={f.darkHex}
-          stroke="rgba(255, 255, 255, 0.85)"
-          strokeWidth={2}
+          cy={-51}
+          r={20.5}
+          fill="#1B1B1B"
         />
         <circle
-          cx={0}
-          cy={-42}
-          r={11.5}
+          cx={1}
+          cy={-49.5}
+          r={19.5}
           fill={`url(#lkPawnGrad-${color})`}
         />
 
-        {/* Glossy 3D Specular Highlight on Top Dome */}
+        {/* Top-Left Inner Shadow Crescent inside Colored Sphere */}
+        <path
+          d="M -15,-62 A 19.5,19.5 0 0,1 16,-60 A 19,17 0 0,0 -14,-44 Z"
+          fill="rgba(0, 0, 0, 0.28)"
+        />
+
+        {/* Bottom-Right Glossy Highlight on Colored Sphere */}
         <ellipse
-          cx={-6}
-          cy={-48}
-          rx={6.5}
-          ry={3.2}
-          transform="rotate(-25 -6 -48)"
-          fill="rgba(255, 255, 255, 0.75)"
+          cx={5}
+          cy={-42}
+          rx={8}
+          ry={4.5}
+          transform="rotate(-20 5 -42)"
+          fill="rgba(255, 255, 255, 0.32)"
         />
 
         {stackCount > 1 && showStackBadge && (
-          <g transform="translate(19, -60)">
-            <circle r={11} fill="#1E293B" stroke="#FFFFFF" strokeWidth={2} />
+          <g transform="translate(23, -72)">
+            <circle r={12} fill="#111827" stroke="#FFFFFF" strokeWidth={2.2} />
             <text
               y={4}
               textAnchor="middle"
               fill="#FFFFFF"
-              fontSize="11"
-              fontWeight="800"
+              fontSize="12"
+              fontWeight="900"
               fontFamily="Plus Jakarta Sans, sans-serif"
             >
               {stackCount}
@@ -277,14 +319,15 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
   const getStackOffset = (idx: number, total: number): [number, number] => {
     if (total <= 1) return [0, 0];
     if (total === 2) {
-      return idx === 0 ? [-14, 3] : [14, -3];
+      return idx === 0 ? [-15, 3] : [15, -3];
     }
-    const radius = 16;
+    const radius = 17;
     const angle = (idx / total) * Math.PI * 2 - Math.PI / 2;
     return [Math.cos(angle) * radius, Math.sin(angle) * radius];
   };
 
-  const baseScale = boardType === 'square4p' ? 0.86 : boardType === 'pent5p' ? 0.72 : 0.66;
+  // Large, prominent Ludo King pawn sizing (matches Image 2)
+  const baseScale = boardType === 'square4p' ? 1.26 : boardType === 'pent5p' ? 0.92 : 0.84;
 
   const positionedPawns: {
     pawn: RenderablePawn;
@@ -300,15 +343,18 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
     group.forEach((pawn, idx) => {
       const [ox, oy] = getStackOffset(idx, group.length);
       const cx = pawn.coord[1] * CELL + ox;
-      const cy = pawn.coord[0] * CELL + oy + (isRadial ? 10 : 15);
+      const inYard = pawn.step === -1;
+      const cy = pawn.coord[0] * CELL + oy + (inYard ? 8 : isRadial ? 10 : 14);
       const scale = pawn.isAnimating
+        ? baseScale * 1.12
+        : inYard
         ? baseScale * 1.08
         : group.length === 1
-        ? baseScale
+        ? baseScale * 0.96
         : group.length === 2
         ? baseScale * 0.8
-        : baseScale * 0.7;
-      const jumpHeight = pawn.isAnimating ? Math.sin(pawn.hopProgress * Math.PI) * 38 : 0;
+        : baseScale * 0.72;
+      const jumpHeight = pawn.isAnimating ? Math.sin(pawn.hopProgress * Math.PI) * 42 : 0;
 
       positionedPawns.push({
         pawn,
@@ -339,103 +385,126 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
   return (
     <div className="relative flex items-center justify-center select-none w-full">
       <div
-        className={`relative w-full aspect-square max-w-[min(78vh,96vw)] overflow-hidden ${
+        className={`relative w-full aspect-square overflow-hidden ${
           isRadial
-            ? 'rounded-3xl bg-transparent'
-            : 'rounded-xl border-[3px] border-[#1E293B] bg-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]'
+            ? 'rounded-2xl bg-transparent'
+            : 'border-[3px] border-[#111111] bg-white shadow-[0_8px_28px_rgba(0,0,0,0.55)]'
         }`}
       >
         <svg viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`} className="w-full h-full block">
           <defs>
-            <filter id="cleanPawnShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <filter id="cleanPawnShadow" x="-35%" y="-35%" width="170%" height="170%">
               <feDropShadow
                 dx="0"
-                dy="3"
-                stdDeviation="2.5"
-                floodColor="#0F172A"
-                floodOpacity="0.4"
+                dy="4"
+                stdDeviation="3"
+                floodColor="#000000"
+                floodOpacity="0.48"
               />
             </filter>
+
+            {/* Glossy White-to-Silver 3D Pin Body Gradient */}
+            <linearGradient id="lkWhitePinBody" x1="15%" y1="5%" x2="85%" y2="95%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="55%" stopColor="#F1F5F9" />
+              <stop offset="100%" stopColor="#CBD5E1" />
+            </linearGradient>
 
             {TURN_ORDER_6P.map((color) => {
               const f = FACTIONS[color];
               return (
-                <linearGradient
+                <radialGradient
                   key={color}
                   id={`lkPawnGrad-${color}`}
-                  x1="20%"
-                  y1="0%"
-                  x2="80%"
-                  y2="100%"
+                  cx="38%"
+                  cy="35%"
+                  r="68%"
                 >
                   <stop offset="0%" stopColor={f.lightHex} />
-                  <stop offset="50%" stopColor={f.primaryHex} />
+                  <stop offset="55%" stopColor={f.primaryHex} />
                   <stop offset="100%" stopColor={f.darkHex} />
-                </linearGradient>
+                </radialGradient>
               );
             })}
           </defs>
 
           {!isRadial ? (
             /* ===============================================================
-             * 1. CLASSIC 4-PLAYER SQUARE BOARD (15x15)
+             * 1. ORIGINAL LUDO KING 4-PLAYER SQUARE BOARD (15x15)
              * =============================================================== */
             <>
               {(
                 [
-                  { color: 'red' as const, r: 0, c: 0 },
-                  { color: 'green' as const, r: 0, c: 9 },
-                  { color: 'yellow' as const, r: 9, c: 9 },
-                  { color: 'blue' as const, r: 9, c: 0 },
+                  {
+                    color: 'red' as const,
+                    r: 0,
+                    c: 0,
+                    defaultLabel: 'Player 2',
+                    labelX: 46,
+                    labelY: 300,
+                    labelRot: 90,
+                  },
+                  {
+                    color: 'green' as const,
+                    r: 0,
+                    c: 9,
+                    defaultLabel: 'Player 3',
+                    labelX: 1200,
+                    labelY: 46,
+                    labelRot: 180,
+                  },
+                  {
+                    color: 'yellow' as const,
+                    r: 9,
+                    c: 9,
+                    defaultLabel: 'Player 4',
+                    labelX: 1454,
+                    labelY: 1200,
+                    labelRot: -90,
+                  },
+                  {
+                    color: 'blue' as const,
+                    r: 9,
+                    c: 0,
+                    defaultLabel: 'Player 1',
+                    labelX: 300,
+                    labelY: 1456,
+                    labelRot: 0,
+                  },
                 ] as const
-              ).map(({ color, r, c }) => {
+              ).map(({ color, r, c, defaultLabel, labelX, labelY, labelRot }) => {
                 const f = FACTIONS[color];
                 const x = c * CELL;
                 const y = r * CELL;
                 const size = 6 * CELL;
-
-                const isTurnYard = currentTurn === color;
+                const pState = gameState.players[color];
+                const displayLabel = pState?.active ? pState.name || defaultLabel : defaultLabel;
 
                 return (
                   <g key={`yard4p-${color}`}>
+                    {/* Outer 6x6 Colored Yard */}
                     <rect
                       x={x}
                       y={y}
                       width={size}
                       height={size}
                       fill={f.primaryHex}
-                      stroke="#1E293B"
+                      stroke="#222222"
                       strokeWidth={2.5}
                     />
-                    {isTurnYard && (
-                      <rect
-                        x={x + 6}
-                        y={y + 6}
-                        width={size - 12}
-                        height={size - 12}
-                        fill="none"
-                        stroke="#FFE600"
-                        strokeWidth={6}
-                        opacity={0.85}
-                      >
-                        <animate
-                          attributeName="opacity"
-                          values="0.35;0.95;0.35"
-                          dur="1.1s"
-                          repeatCount="indefinite"
-                        />
-                      </rect>
-                    )}
+
+                    {/* Sharp Inner White Box (Exact Ludo King rx=0) */}
                     <rect
-                      x={x + 95}
-                      y={y + 95}
-                      width={size - 190}
-                      height={size - 190}
-                      rx={22}
+                      x={x + 100}
+                      y={y + 100}
+                      width={400}
+                      height={400}
                       fill="#FFFFFF"
-                      stroke="#1E293B"
-                      strokeWidth={2.5}
+                      stroke="#222222"
+                      strokeWidth={2}
                     />
+
+                    {/* 4 Double-Ringed Colored Token Pads */}
                     {YARD_SLOT_COORDS[color].map(([slotRow, slotCol], sIdx) => {
                       const cx = slotCol * CELL;
                       const cy = slotRow * CELL;
@@ -444,26 +513,44 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                           <circle
                             cx={cx}
                             cy={cy}
-                            r={44}
+                            r={47}
                             fill={f.primaryHex}
-                            stroke="#1E293B"
-                            strokeWidth={2.5}
                           />
                           <circle
                             cx={cx}
                             cy={cy}
-                            r={36}
-                            fill="none"
-                            stroke="rgba(255,255,255,0.45)"
-                            strokeWidth={2}
+                            r={31}
+                            fill={f.darkHex}
+                            stroke="#1B1B1B"
+                            strokeWidth={2.8}
                           />
                         </g>
                       );
                     })}
+
+                    {/* Rotated Player Label on Yard Border (Exact Ludo King Style) */}
+                    <g transform={`translate(${labelX}, ${labelY}) rotate(${labelRot})`}>
+                      <text
+                        x={0}
+                        y={0}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill="#FFFFFF"
+                        stroke="#000000"
+                        strokeWidth={6}
+                        paintOrder="stroke"
+                        fontSize="38"
+                        fontWeight="800"
+                        fontFamily="Plus Jakarta Sans, sans-serif"
+                      >
+                        {displayLabel}
+                      </text>
+                    </g>
                   </g>
                 );
               })}
 
+              {/* 52 Perimeter Track Squares */}
               {MAIN_TRACK_COORDS.map(([r, c], uIdx) => {
                 const x = c * CELL;
                 const y = r * CELL;
@@ -478,58 +565,59 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                       width={CELL}
                       height={CELL}
                       fill={startColor ? FACTIONS[startColor].primaryHex : '#FFFFFF'}
-                      stroke="#334155"
+                      stroke="#262626"
                       strokeWidth={2}
                     />
-                    {startColor && (
-                      <CleanStar
-                        cx={x + 50}
-                        cy={y + 50}
-                        outerR={28}
-                        innerR={11.5}
-                        fill="#FFFFFF"
-                        stroke="#1E293B"
-                      />
-                    )}
+                    {/* 4 Star Safe Squares (Large White Star with Black Outline, No Star on Colored Start Squares) */}
                     {isStarSafe && (
                       <CleanStar
                         cx={x + 50}
                         cy={y + 50}
-                        outerR={28}
-                        innerR={11.5}
-                        fill="#CBD5E1"
-                        stroke="#334155"
+                        outerR={38}
+                        innerR={15}
+                        fill="#FFFFFF"
+                        stroke="#262626"
+                        strokeWidth={2.5}
                       />
                     )}
-                    {/* Ludo King Home-Path Entrance Arrows */}
+                    {/* 4 Ludo King Home-Path Entrance Line Arrows */}
                     {uIdx === 50 && (
-                      <polygon
-                        points={`${x + 22},${y + 32} ${x + 78},${y + 50} ${x + 22},${y + 68}`}
-                        fill={FACTIONS.red.primaryHex}
+                      <LudoKingLineArrow
+                        cx={x + 50}
+                        cy={y + 50}
+                        dir="right"
+                        color={FACTIONS.red.primaryHex}
                       />
                     )}
                     {uIdx === 11 && (
-                      <polygon
-                        points={`${x + 32},${y + 22} ${x + 50},${y + 78} ${x + 68},${y + 22}`}
-                        fill={FACTIONS.green.primaryHex}
+                      <LudoKingLineArrow
+                        cx={x + 50}
+                        cy={y + 50}
+                        dir="down"
+                        color={FACTIONS.green.primaryHex}
                       />
                     )}
                     {uIdx === 24 && (
-                      <polygon
-                        points={`${x + 78},${y + 32} ${x + 22},${y + 50} ${x + 78},${y + 68}`}
-                        fill={FACTIONS.yellow.primaryHex}
+                      <LudoKingLineArrow
+                        cx={x + 50}
+                        cy={y + 50}
+                        dir="left"
+                        color={FACTIONS.yellow.darkHex}
                       />
                     )}
                     {uIdx === 37 && (
-                      <polygon
-                        points={`${x + 32},${y + 78} ${x + 50},${y + 22} ${x + 68},${y + 78}`}
-                        fill={FACTIONS.blue.primaryHex}
+                      <LudoKingLineArrow
+                        cx={x + 50}
+                        cy={y + 50}
+                        dir="up"
+                        color={FACTIONS.blue.primaryHex}
                       />
                     )}
                   </g>
                 );
               })}
 
+              {/* 4 Colored Home Stretches */}
               {(['red', 'green', 'yellow', 'blue'] as const).map((color) => {
                 const f = FACTIONS[color];
                 return HOME_STRETCH_COORDS[color].map(([r, c], idx) => (
@@ -540,36 +628,37 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                     width={CELL}
                     height={CELL}
                     fill={f.primaryHex}
-                    stroke="#475569"
+                    stroke="#262626"
                     strokeWidth={2}
                   />
                 ));
               })}
 
+              {/* Center 3x3 Home Triangles */}
               <g>
                 <polygon
                   points="600,600 750,750 600,900"
                   fill={FACTIONS.red.primaryHex}
-                  stroke="#334155"
-                  strokeWidth={2}
+                  stroke="#222222"
+                  strokeWidth={2.2}
                 />
                 <polygon
                   points="600,600 750,750 900,600"
                   fill={FACTIONS.green.primaryHex}
-                  stroke="#334155"
-                  strokeWidth={2}
+                  stroke="#222222"
+                  strokeWidth={2.2}
                 />
                 <polygon
                   points="900,600 750,750 900,900"
                   fill={FACTIONS.yellow.primaryHex}
-                  stroke="#334155"
-                  strokeWidth={2}
+                  stroke="#222222"
+                  strokeWidth={2.2}
                 />
                 <polygon
                   points="600,900 750,750 900,900"
                   fill={FACTIONS.blue.primaryHex}
-                  stroke="#334155"
-                  strokeWidth={2}
+                  stroke="#222222"
+                  strokeWidth={2.2}
                 />
                 <rect
                   x={600}
@@ -577,7 +666,7 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                   width={300}
                   height={300}
                   fill="none"
-                  stroke="#334155"
+                  stroke="#222222"
                   strokeWidth={2.5}
                 />
               </g>
@@ -585,11 +674,8 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
           ) : (
             /* ===============================================================
              * 2. DISTINCT 5-PLAYER PENTAGONAL BOARD & 6-PLAYER HEXAGONAL BOARD
-             *    - 5-Player: 5 Arms at 72°, 5 Wedge Yards, Central Pentagon
-             *    - 6-Player: 6 Arms at 60°, 6 Wedge Yards, Central Hexagon
              * =============================================================== */
             <>
-              {/* 1. N SEAMLESS TRIANGULAR WEDGE YARDS BETWEEN THE N ARMS */}
               {radialGeom.colors.map((color) => {
                 const f = FACTIONS[color];
                 const stepDeg = 360 / radialGeom.numArms;
@@ -621,14 +707,14 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                 const cy = ycRow * CELL;
                 const boxHalf = radialGeom.numArms === 5 ? 96 : 86;
                 const slotR = radialGeom.numArms === 5 ? 34 : 30;
-                const innerSlotR = radialGeom.numArms === 5 ? 23 : 20;
+                const innerSlotR = radialGeom.numArms === 5 ? 22 : 19;
 
                 return (
                   <g key={`yard-${boardType}-${color}`}>
                     <polygon
                       points={`${vInX},${vInY} ${vOut2X},${vOut2Y} ${vOut1X},${vOut1Y}`}
                       fill={f.primaryHex}
-                      stroke="#334155"
+                      stroke="#222222"
                       strokeWidth={2.5}
                       strokeLinejoin="round"
                     />
@@ -638,9 +724,8 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                       y={cy - boxHalf}
                       width={boxHalf * 2}
                       height={boxHalf * 2}
-                      rx={22}
                       fill="#FFFFFF"
-                      stroke="#334155"
+                      stroke="#222222"
                       strokeWidth={2}
                     />
 
@@ -651,16 +736,14 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                           cy={sr * CELL}
                           r={slotR}
                           fill={f.primaryHex}
-                          stroke="#1E293B"
-                          strokeWidth={2}
                         />
                         <circle
                           cx={sc * CELL}
                           cy={sr * CELL}
                           r={innerSlotR}
-                          fill="none"
-                          stroke="rgba(255,255,255,0.45)"
-                          strokeWidth={1.8}
+                          fill={f.darkHex}
+                          stroke="#1B1B1B"
+                          strokeWidth={2}
                         />
                       </g>
                     ))}
@@ -668,7 +751,6 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                 );
               })}
 
-              {/* 2. N RADIAL 3x6 TRACK ARMS */}
               {radialGeom.colors.map((color) => {
                 const f = FACTIONS[color];
                 const deg = radialGeom.armAnglesDeg[color];
@@ -680,97 +762,77 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                     key={`arm-${boardType}-${color}`}
                     transform={`translate(750, 750) rotate(${deg})`}
                   >
-                    {[0, 1, 2, 3, 4, 5].map((rank) => {
-                      const x = innerPx + rank * tilePx;
-                      return (
-                        <React.Fragment key={`rank-${rank}`}>
-                          <rect
-                            x={x}
-                            y={-1.5 * tilePx}
-                            width={tilePx}
-                            height={tilePx}
-                            fill="#FFFFFF"
-                            stroke="#475569"
-                            strokeWidth={1.8}
-                          />
-                          {rank === 4 && (
-                            <CleanStar
-                              cx={x + tilePx / 2}
-                              cy={-tilePx}
-                              outerR={20}
-                              innerR={8}
-                              fill="#E2E8F0"
-                              stroke="#475569"
-                            />
-                          )}
+                    {[0, 1, 2, 3, 4, 5].map((d) =>
+                      [-1, 0, 1].map((lane) => {
+                        const x = innerPx + d * tilePx;
+                        const y = (lane - 0.5) * tilePx;
 
-                          <rect
-                            x={x}
-                            y={-0.5 * tilePx}
-                            width={tilePx}
-                            height={tilePx}
-                            fill={rank < 5 ? f.primaryHex : '#FFFFFF'}
-                            stroke="#475569"
-                            strokeWidth={1.8}
-                          />
+                        const isStartSquare = lane === 1 && d === 4;
+                        const isStarSquare = lane === -1 && d === 2;
+                        const isHomeStretch = lane === 0 && d < 5;
 
-                          <rect
-                            x={x}
-                            y={0.5 * tilePx}
-                            width={tilePx}
-                            height={tilePx}
-                            fill={rank === 4 ? f.primaryHex : '#FFFFFF'}
-                            stroke="#475569"
-                            strokeWidth={1.8}
-                          />
-                          {rank === 4 && (
-                            <CleanStar
-                              cx={x + tilePx / 2}
-                              cy={tilePx}
-                              outerR={20}
-                              innerR={8}
-                              fill="#FFFFFF"
-                              stroke="#334155"
+                        let fillHex = '#FFFFFF';
+                        if (isStartSquare || isHomeStretch) {
+                          fillHex = f.primaryHex;
+                        }
+
+                        return (
+                          <g key={`cell-${boardType}-${color}-${d}-${lane}`}>
+                            <rect
+                              x={x}
+                              y={y}
+                              width={tilePx}
+                              height={tilePx}
+                              fill={fillHex}
+                              stroke="#262626"
+                              strokeWidth={1.8}
                             />
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
+                            {isStarSquare && (
+                              <CleanStar
+                                cx={x + tilePx / 2}
+                                cy={y + tilePx / 2}
+                                outerR={tilePx * 0.36}
+                                innerR={tilePx * 0.14}
+                                fill="#FFFFFF"
+                                stroke="#262626"
+                              />
+                            )}
+                          </g>
+                        );
+                      })
+                    )}
                   </g>
                 );
               })}
 
-              {/* 3. CENTRAL N-GON HOME TRIANGLES (PENTAGON FOR 5P, HEXAGON FOR 6P) */}
-              <g transform="translate(750, 750)">
+              <g>
                 {radialGeom.colors.map((color) => {
                   const f = FACTIONS[color];
-                  const halfWedgeDeg = 180 / radialGeom.numArms; // 36° for 5P, 30° for 6P
                   const deg = radialGeom.armAnglesDeg[color];
-                  const rad1 = ((deg - halfWedgeDeg) * Math.PI) / 180;
-                  const rad2 = ((deg + halfWedgeDeg) * Math.PI) / 180;
-                  const rVertex =
-                    (radialGeom.innerRadius * CELL) /
-                    Math.cos(Math.PI / radialGeom.numArms);
-                  const x1 = rVertex * Math.cos(rad1);
-                  const y1 = rVertex * Math.sin(rad1);
-                  const x2 = rVertex * Math.cos(rad2);
-                  const y2 = rVertex * Math.sin(rad2);
+                  const tilePx = radialGeom.tileSize * CELL;
+                  const innerPx = radialGeom.innerRadius * CELL;
+                  const halfArm = 1.5 * tilePx;
 
                   return (
-                    <polygon
+                    <g
                       key={`center-tri-${boardType}-${color}`}
-                      points={`0,0 ${x1},${y1} ${x2},${y2}`}
-                      fill={f.primaryHex}
-                      stroke="#334155"
-                      strokeWidth={2}
-                    />
+                      transform={`translate(750, 750) rotate(${deg})`}
+                    >
+                      <polygon
+                        points={`0,0 ${innerPx},${-halfArm} ${innerPx},${halfArm}`}
+                        fill={f.primaryHex}
+                        stroke="#222222"
+                        strokeWidth={2.2}
+                        strokeLinejoin="round"
+                      />
+                    </g>
                   );
                 })}
               </g>
             </>
           )}
 
-          {/* RENDER ALL PAWNS */}
+          {/* Render All Pawns on Top of the Board */}
           {positionedPawns.map(
             ({ pawn, cx, cy, scale, jumpHeight, stackCount, showStackBadge }) => (
               <LudoKingPawn

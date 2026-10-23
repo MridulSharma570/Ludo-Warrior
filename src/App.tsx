@@ -46,21 +46,77 @@ import {
   Users,
   BookOpen,
   Globe,
-  Home,
+  X,
 } from 'lucide-react';
 
 // Unhurried, readable Ludo King hop timing & captured piece return speed
 const HOP_DURATION_MS = 265;
 const REWIND_SEG_MS = 85;
 
-const QUICK_EMOJIS = [
-  { emoji: '😂', text: 'Haha!' },
-  { emoji: '😎', text: 'Cool!' },
-  { emoji: '🔥', text: 'Roll 6!' },
-  { emoji: '👏', text: 'Nice!' },
-  { emoji: '😱', text: 'Oops!' },
-  { emoji: '👑', text: 'GG!' },
-];
+/**
+ * Authentic Ludo King Tilted Tiled Board Wallpaper Background (Matches Image 2)
+ */
+const LudoKingWallpaperBackground: React.FC = () => (
+  <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="lkBgVignette" cx="50%" cy="48%" r="72%">
+          <stop offset="0%" stopColor="#1B6CA8" stopOpacity="0.32" />
+          <stop offset="55%" stopColor="#0D3C6E" stopOpacity="0.68" />
+          <stop offset="100%" stopColor="#051B38" stopOpacity="0.94" />
+        </radialGradient>
+
+        <pattern
+          id="ludoKingBoardPattern"
+          width="260"
+          height="260"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(-24)"
+        >
+          <rect width="260" height="260" fill="#134E8A" stroke="#0B315C" strokeWidth="3" />
+          {/* 4 Corner Yards */}
+          <rect x="6" y="6" width="96" height="96" fill="#0F4279" stroke="#0B315C" strokeWidth="2" />
+          <rect x="22" y="22" width="64" height="64" fill="#1C64AA" />
+          <circle cx="38" cy="38" r="9" fill="#0F4279" />
+          <circle cx="70" cy="38" r="9" fill="#0F4279" />
+          <circle cx="38" cy="70" r="9" fill="#0F4279" />
+          <circle cx="70" cy="70" r="9" fill="#0F4279" />
+
+          <rect x="158" y="6" width="96" height="96" fill="#126872" stroke="#0B315C" strokeWidth="2" />
+          <rect x="174" y="22" width="64" height="64" fill="#218390" />
+          <circle cx="190" cy="38" r="9" fill="#126872" />
+          <circle cx="222" cy="38" r="9" fill="#126872" />
+          <circle cx="190" cy="70" r="9" fill="#126872" />
+          <circle cx="222" cy="70" r="9" fill="#126872" />
+
+          <rect x="6" y="158" width="96" height="96" fill="#165C9E" stroke="#0B315C" strokeWidth="2" />
+          <rect x="22" y="174" width="64" height="64" fill="#2477C2" />
+          <circle cx="38" cy="190" r="9" fill="#165C9E" />
+          <circle cx="70" cy="190" r="9" fill="#165C9E" />
+          <circle cx="38" cy="222" r="9" fill="#165C9E" />
+          <circle cx="70" cy="222" r="9" fill="#165C9E" />
+
+          <rect x="158" y="158" width="96" height="96" fill="#1D687A" stroke="#0B315C" strokeWidth="2" />
+          <rect x="174" y="174" width="64" height="64" fill="#2B869B" />
+          <circle cx="190" cy="190" r="9" fill="#1D687A" />
+          <circle cx="222" cy="190" r="9" fill="#1D687A" />
+          <circle cx="190" cy="222" r="9" fill="#1D687A" />
+          <circle cx="222" cy="222" r="9" fill="#1D687A" />
+
+          {/* Center Cross & Triangles */}
+          <rect x="102" y="6" width="56" height="248" fill="none" stroke="#0B315C" strokeWidth="1.5" />
+          <rect x="6" y="102" width="248" height="56" fill="none" stroke="#0B315C" strokeWidth="1.5" />
+          <polygon points="102,102 130,130 102,158" fill="#0E3B6C" />
+          <polygon points="102,102 130,130 158,102" fill="#125C68" />
+          <polygon points="158,102 130,130 158,158" fill="#1B6678" />
+          <polygon points="102,158 130,130 158,158" fill="#15528E" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#ludoKingBoardPattern)" />
+      <rect width="100%" height="100%" fill="url(#lkBgVignette)" />
+    </svg>
+  </div>
+);
 
 export const App: React.FC = () => {
   const [profile, setProfile] = useState<WarriorProfile>(() => loadWarriorProfile());
@@ -68,29 +124,32 @@ export const App: React.FC = () => {
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(true);
   const [musicEnabled, setMusicEnabled] = useState<boolean>(false);
   const [screen, setScreen] = useState<'home' | 'game'>('home');
+  const [showCornerMenu, setShowCornerMenu] = useState<boolean>(false);
 
   const [slotConfigs, setSlotConfigs] = useState<SlotSetupConfig[]>([
-    { color: 'red', name: profile.commanderName, isAI: false, aiDifficulty: 'hard', active: true },
-    { color: 'green', name: 'Green Bot', isAI: true, aiDifficulty: 'hard', active: true },
-    { color: 'yellow', name: 'Yellow Bot', isAI: true, aiDifficulty: 'hard', active: true },
-    { color: 'blue', name: 'Blue Bot', isAI: true, aiDifficulty: 'hard', active: true },
-    { color: 'purple', name: 'Purple Bot', isAI: true, aiDifficulty: 'hard', active: false },
-    { color: 'orange', name: 'Orange Bot', isAI: true, aiDifficulty: 'hard', active: false },
+    { color: 'blue', name: 'Player 1', isAI: false, aiDifficulty: 'hard', active: true },
+    { color: 'red', name: 'Player 2', isAI: true, aiDifficulty: 'hard', active: true },
+    { color: 'green', name: 'Player 3', isAI: true, aiDifficulty: 'hard', active: true },
+    { color: 'yellow', name: 'Player 4', isAI: true, aiDifficulty: 'hard', active: true },
+    { color: 'purple', name: 'Player 5', isAI: true, aiDifficulty: 'hard', active: false },
+    { color: 'orange', name: 'Player 6', isAI: true, aiDifficulty: 'hard', active: false },
   ]);
 
-  const [gameState, setGameState] = useState<GameState>(() =>
-    createInitialGameState({
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const initial = createInitialGameState({
       mode: 'classic',
       playerConfigs: [
-        { color: 'red', name: profile.commanderName, isAI: false, aiDifficulty: 'hard', active: true },
-        { color: 'green', name: 'Green Bot', isAI: true, aiDifficulty: 'hard', active: true },
-        { color: 'yellow', name: 'Yellow Bot', isAI: true, aiDifficulty: 'hard', active: true },
-        { color: 'blue', name: 'Blue Bot', isAI: true, aiDifficulty: 'hard', active: true },
-        { color: 'purple', name: 'Purple Bot', isAI: true, aiDifficulty: 'hard', active: false },
-        { color: 'orange', name: 'Orange Bot', isAI: true, aiDifficulty: 'hard', active: false },
+        { color: 'blue', name: 'Player 1', isAI: false, aiDifficulty: 'hard', active: true },
+        { color: 'red', name: 'Player 2', isAI: true, aiDifficulty: 'hard', active: true },
+        { color: 'green', name: 'Player 3', isAI: true, aiDifficulty: 'hard', active: true },
+        { color: 'yellow', name: 'Player 4', isAI: true, aiDifficulty: 'hard', active: true },
+        { color: 'purple', name: 'Player 5', isAI: true, aiDifficulty: 'hard', active: false },
+        { color: 'orange', name: 'Player 6', isAI: true, aiDifficulty: 'hard', active: false },
       ],
-    })
-  );
+    });
+    initial.currentTurn = 'blue';
+    return initial;
+  });
 
   // Modals
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -130,13 +189,17 @@ export const App: React.FC = () => {
         setShowOnlineModal(false);
         return;
       }
+      if (showCornerMenu) {
+        setShowCornerMenu(false);
+        return;
+      }
       if (screen === 'game') {
         setScreen('home');
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [screen, showSetupModal, showRulesModal, showOnlineModal]);
+  }, [screen, showSetupModal, showRulesModal, showOnlineModal, showCornerMenu]);
 
   const updateProfile = useCallback((updater: (prev: WarriorProfile) => WarriorProfile) => {
     setProfile((prev) => {
@@ -548,6 +611,7 @@ export const App: React.FC = () => {
     setCurrentOnlineRoomId(null);
     setMyOnlineColor(null);
     setShowVictoryModal(false);
+    setShowCornerMenu(false);
 
     const freshState = createInitialGameState({
       mode,
@@ -560,48 +624,15 @@ export const App: React.FC = () => {
       })),
     });
 
+    // If Blue is an active human player, let Blue roll first just like Image 2
+    if (freshState.players.blue?.active && !freshState.players.blue.isAI) {
+      freshState.currentTurn = 'blue';
+    }
+
     setGameState(freshState);
     window.history.pushState({ ludoScreen: 'game' }, '');
     setScreen('game');
     soundEngine.playModeStart();
-  };
-
-  // Send Quick Emote / Chat Bubble
-  const handleSendQuickEmote = (emote: string, message: string) => {
-    const senderColor =
-      myOnlineColor ??
-      gameState.activeOrder.find((c) => !gameState.players[c].isAI) ??
-      gameState.currentTurn;
-
-    const event: EmoteEvent = {
-      id: `emote-${Date.now()}`,
-      color: senderColor,
-      playerName: gameState.players[senderColor]?.name ?? profile.commanderName,
-      emote,
-      message,
-      timestamp: Date.now(),
-    };
-
-    soundEngine.playClick();
-
-    if (currentOnlineRoomId && socketRef.current) {
-      socketRef.current.emit('game:emote', {
-        roomId: currentOnlineRoomId,
-        emote,
-        message,
-      });
-    } else {
-      setActiveEmotes((prev) => ({ ...prev, [senderColor]: event }));
-      setTimeout(() => {
-        setActiveEmotes((prev) => {
-          const copy = { ...prev };
-          if (copy[senderColor]?.id === event.id) {
-            delete copy[senderColor];
-          }
-          return copy;
-        });
-      }, 2800);
-    }
   };
 
   // Toggle Sound SFX
@@ -752,162 +783,17 @@ export const App: React.FC = () => {
       : ['blue', 'yellow'];
 
   return (
-    <div
-      className="h-[100dvh] w-screen overflow-hidden flex flex-col justify-between select-none text-white android-safe-top android-safe-bottom"
-      style={{
-        backgroundColor: '#0A2558',
-        backgroundImage: `
-          radial-gradient(circle at 50% 45%, rgba(28, 92, 197, 0.55) 0%, rgba(7, 24, 61, 0.92) 78%),
-          repeating-linear-gradient(45deg, rgba(255, 215, 0, 0.04) 0px, rgba(255, 215, 0, 0.04) 2px, transparent 2px, transparent 28px),
-          repeating-linear-gradient(-45deg, rgba(255, 215, 0, 0.04) 0px, rgba(255, 215, 0, 0.04) 2px, transparent 2px, transparent 28px)
-        `,
-      }}
-    >
-      {/* Android Portrait Top Navigation & Quick Player Count Bar */}
-      <header className="w-full max-w-[540px] mx-auto px-2 pt-1 pb-0.5 flex items-center justify-between gap-1.5 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              setScreen('home');
-            }}
-            className="android-btn-press w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#0B2854] border-2 border-[#FFCB05] flex items-center justify-center text-[#FFCB05] shadow"
-            title="Home Menu"
-          >
-            <Home className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+    <div className="relative h-[100dvh] w-screen overflow-hidden flex flex-col items-center justify-center select-none text-white android-safe-top android-safe-bottom">
+      {/* 1. Authentic Ludo King Tilted Tiled Board Wallpaper Background */}
+      <LudoKingWallpaperBackground />
 
-          {/* 1-Tap Player Count Switcher (2P / 3P / 4P / 5P / 6P) */}
-          <div className="flex items-center gap-0.5 bg-[#061836] p-0.5 rounded-xl border border-white/25">
-            {([2, 3, 4, 5, 6] as const).map((num) => {
-              const isCurr = gameState.activeOrder.length === num;
-              return (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => {
-                    const quickSlots: SlotSetupConfig[] = TURN_ORDER_6P.map((c) => {
-                      let active = false;
-                      if (num === 2) active = c === 'red' || c === 'yellow';
-                      else if (num === 3) active = c === 'red' || c === 'green' || c === 'yellow';
-                      else if (num === 4)
-                        active = c === 'red' || c === 'green' || c === 'yellow' || c === 'blue';
-                      else if (num === 5) active = TURN_ORDER_5P.includes(c);
-                      else active = true;
-
-                      return {
-                        color: c,
-                        name: c === 'red' ? profile.commanderName : `${FACTIONS[c].name} Bot`,
-                        isAI: c !== 'red',
-                        aiDifficulty: 'hard',
-                        active,
-                      };
-                    });
-                    handleStartConfiguredMatch(gameState.mode, quickSlots);
-                  }}
-                  className={`android-btn-press px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-black uppercase transition ${
-                    isCurr
-                      ? 'bg-[#FFCB05] text-slate-950 shadow'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  {num}P
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              setShowSetupModal(true);
-            }}
-            className="android-btn-press px-2 py-1 rounded-xl bg-[#00A651] border-2 border-white text-white text-[10px] font-black uppercase flex items-center gap-1 shadow"
-            title="Match Setup"
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Setup</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              setShowOnlineModal(true);
-            }}
-            className="android-btn-press px-2 py-1 rounded-xl bg-[#0072BC] border-2 border-white text-white text-[10px] font-black uppercase flex items-center gap-1 shadow"
-            title="Online Room"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {currentOnlineRoomId ? currentOnlineRoomId : 'Online'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleStartConfiguredMatch(gameState.mode, slotConfigs)}
-            className="android-btn-press p-1.5 rounded-xl bg-[#0B2854] border border-white/25 text-white"
-            title="Restart Match"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              setShowRulesModal(true);
-            }}
-            className="android-btn-press p-1.5 rounded-xl bg-[#0B2854] border border-white/25 text-white"
-            title="Rules"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleHaptics}
-            className={`android-btn-press p-1.5 rounded-xl border border-white/25 ${
-              hapticsEnabled ? 'bg-[#00A651] text-white' : 'bg-[#0B2854] text-slate-400'
-            }`}
-            title={hapticsEnabled ? 'Vibration ON' : 'Vibration OFF'}
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="android-btn-press p-1.5 rounded-xl bg-[#0B2854] border border-white/25 text-white"
-            title="Fullscreen"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleSound}
-            className="android-btn-press p-1.5 rounded-xl bg-[#FFCB05] text-slate-950 font-bold"
-            title={soundEnabled ? 'Mute Sound' : 'Unmute Sound'}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      </header>
-
-      {/* Main Android Portrait Ludo King Arena: Top Player Pods -> Edge-to-Edge Board -> Bottom Player Pods */}
-      <main className="flex-1 flex flex-col items-center justify-between w-full max-w-[540px] mx-auto px-1.5 py-0.5 min-h-0">
-        {/* Top Row Player Pods */}
+      {/* 2. Center Flush-Docked Ludo King Arena: Top Dice Pods -> Full-Bleed Board -> Bottom Dice Pods */}
+      <main className="relative z-10 flex flex-col items-center justify-center w-full max-w-[min(100vw,70dvh)] mx-auto px-0.5">
+        {/* Top Row Player Dice Pods (Docked Flush to Top of Board) */}
         <div
-          className={`w-full grid ${
-            topRowColors.length === 3 ? 'grid-cols-3 gap-1' : 'grid-cols-2 gap-2'
-          } shrink-0`}
+          className={`w-full flex items-end justify-between px-4 sm:px-7 mb-1 shrink-0 ${
+            topRowColors.length === 3 ? 'gap-1' : ''
+          }`}
         >
           {topRowColors.map((color, idx) => (
             <PlayerHudCard
@@ -927,25 +813,23 @@ export const App: React.FC = () => {
           ))}
         </div>
 
-        {/* Center Full-Width Ludo King Board (4P Square, 5P Pentagon, or 6P Hexagon) */}
-        <div className="flex-1 w-full flex items-center justify-center min-h-0 my-0.5">
-          <div className="w-full max-w-[min(98vw,60dvh)] sm:max-w-[min(92vw,65dvh)] aspect-square flex items-center justify-center">
-            <BoardArena
-              gameState={gameState}
-              boardThemeId={profile.boardTheme}
-              activeAnim={activeAnim}
-              clashEffects={clashEffects}
-              canInteractMove={canHumanMove}
-              onSelectToken={handleSelectToken}
-            />
-          </div>
+        {/* Full-Width Ludo King Board (4P Square, 5P Pentagon, or 6P Hexagon) */}
+        <div className="w-full aspect-square flex items-center justify-center">
+          <BoardArena
+            gameState={gameState}
+            boardThemeId={profile.boardTheme}
+            activeAnim={activeAnim}
+            clashEffects={clashEffects}
+            canInteractMove={canHumanMove}
+            onSelectToken={handleSelectToken}
+          />
         </div>
 
-        {/* Bottom Row Player Pods */}
+        {/* Bottom Row Player Dice Pods (Docked Flush to Bottom of Board) */}
         <div
-          className={`w-full grid ${
-            bottomRowColors.length === 3 ? 'grid-cols-3 gap-1' : 'grid-cols-2 gap-2'
-          } shrink-0`}
+          className={`w-full flex items-start justify-between px-4 sm:px-7 mt-1 shrink-0 ${
+            bottomRowColors.length === 3 ? 'gap-1' : ''
+          }`}
         >
           {bottomRowColors.map((color, idx) => (
             <PlayerHudCard
@@ -966,22 +850,196 @@ export const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Android Ludo King Bottom Emoji & Quick-Reaction Bar */}
-      <footer className="w-full max-w-[540px] mx-auto px-2 pb-1 pt-0.5 shrink-0">
-        <div className="flex items-center justify-between gap-1 bg-[#061836]/90 border border-[#FFCB05]/40 rounded-2xl px-2 py-1 shadow-lg">
-          {QUICK_EMOJIS.map((item) => (
+      {/* 3. Authentic Bottom-Left Ludo King Circular Golden Menu Button & Popup (Matches Image 2) */}
+      <div className="fixed bottom-3 left-3 z-30 flex flex-col items-start">
+        {showCornerMenu && (
+          <div
+            className="mb-2.5 w-48 rounded-2xl p-2.5 text-white shadow-2xl border border-white/15 flex flex-col gap-2"
+            style={{
+              background: 'rgba(4, 20, 44, 0.96)',
+            }}
+          >
+            {/* Quick Player Count Switcher (2P / 3P / 4P / 5P / 6P) */}
+            <div className="flex items-center justify-between gap-1 bg-black/40 p-1 rounded-xl border border-white/15">
+              {([2, 3, 4, 5, 6] as const).map((num) => {
+                const isCurr = gameState.activeOrder.length === num;
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => {
+                      const defaultLabels: Record<FactionColor, string> = {
+                        blue: 'Player 1',
+                        red: 'Player 2',
+                        green: 'Player 3',
+                        yellow: 'Player 4',
+                        purple: 'Player 5',
+                        orange: 'Player 6',
+                      };
+                      const quickSlots: SlotSetupConfig[] = TURN_ORDER_6P.map((c) => {
+                        let active = false;
+                        if (num === 2) active = c === 'blue' || c === 'green';
+                        else if (num === 3) active = c === 'blue' || c === 'red' || c === 'green';
+                        else if (num === 4)
+                          active = c === 'blue' || c === 'red' || c === 'green' || c === 'yellow';
+                        else if (num === 5) active = TURN_ORDER_5P.includes(c);
+                        else active = true;
+
+                        return {
+                          color: c,
+                          name: defaultLabels[c],
+                          isAI: c !== 'blue',
+                          aiDifficulty: 'hard',
+                          active,
+                        };
+                      });
+                      handleStartConfiguredMatch(gameState.mode, quickSlots);
+                    }}
+                    className={`flex-1 py-1 rounded-lg text-[10px] font-black uppercase transition ${
+                      isCurr
+                        ? 'bg-[#FFCB05] text-slate-950 shadow'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    {num}P
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* REMOVE PLAYER(S) / SETUP (Exact Ludo King Menu Item) */}
             <button
-              key={item.emoji}
               type="button"
-              onClick={() => handleSendQuickEmote(item.emoji, item.text)}
-              className="android-btn-press flex items-center gap-1 px-2 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-extrabold text-white"
+              onClick={() => {
+                soundEngine.playClick();
+                setShowCornerMenu(false);
+                setShowSetupModal(true);
+              }}
+              className="android-btn-press flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-white/10 text-left"
             >
-              <span className="text-sm leading-none">{item.emoji}</span>
-              <span className="hidden sm:inline text-[10px] text-amber-200">{item.text}</span>
+              <Users className="w-6 h-6 text-[#FFCB05] shrink-0" />
+              <span className="text-xs font-extrabold uppercase leading-tight text-[#FFCB05]">
+                REMOVE
+                <br />
+                PLAYER(S)
+              </span>
             </button>
-          ))}
-        </div>
-      </footer>
+
+            {/* Quick Controls Row (Sound, Vibration, Restart, Online, Rules, Fullscreen) */}
+            <div className="grid grid-cols-5 gap-1 pt-1 border-t border-white/10">
+              <button
+                type="button"
+                onClick={toggleSound}
+                className="p-1.5 rounded-lg bg-white/10 flex items-center justify-center text-[#FFCB05]"
+                title="Sound"
+              >
+                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={toggleHaptics}
+                className={`p-1.5 rounded-lg flex items-center justify-center ${
+                  hapticsEnabled ? 'bg-[#00A651] text-white' : 'bg-white/10 text-slate-400'
+                }`}
+                title="Vibration"
+              >
+                <Smartphone className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCornerMenu(false);
+                  handleStartConfiguredMatch(gameState.mode, slotConfigs);
+                }}
+                className="p-1.5 rounded-lg bg-white/10 flex items-center justify-center text-white"
+                title="Restart"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCornerMenu(false);
+                  setShowOnlineModal(true);
+                }}
+                className="p-1.5 rounded-lg bg-white/10 flex items-center justify-center text-sky-300"
+                title="Online"
+              >
+                <Globe className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCornerMenu(false);
+                  setShowRulesModal(true);
+                }}
+                className="p-1.5 rounded-lg bg-white/10 flex items-center justify-center text-amber-200"
+                title="Rules"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Exit (Exact Ludo King Menu Item) */}
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playClick();
+                setShowCornerMenu(false);
+                setScreen('home');
+              }}
+              className="android-btn-press flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-white/10 text-left border-t border-white/10 pt-2"
+            >
+              <X className="w-7 h-7 text-[#FFCB05] stroke-[3.5] shrink-0" />
+              <span className="text-base font-black text-[#FFCB05]">Exit</span>
+            </button>
+          </div>
+        )}
+
+        {/* Golden Circular Hamburger Menu Button (Exact Ludo King Bottom-Left Icon) */}
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playClick();
+            setShowCornerMenu((prev) => !prev);
+          }}
+          className="android-btn-press w-12 h-12 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.65)]"
+          style={{
+            background: 'linear-gradient(180deg, #0D5DB8 0%, #062B61 100%)',
+            border: '3.5px solid #F5B82E',
+          }}
+          title="Menu"
+        >
+          <div className="flex flex-col gap-1 items-center justify-center">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-[#FFCB05]" />
+                <span className="w-4 h-1 rounded-full bg-[#FFCB05]" />
+              </div>
+            ))}
+          </div>
+        </button>
+      </div>
+
+      {/* 4. Bottom-Right "NO ADS" Badge (Matches Image 2 & Toggles Fullscreen on Tap) */}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        className="fixed bottom-3 right-3 z-30 android-btn-press w-13 h-13 rounded-full flex flex-col items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.65)]"
+        style={{
+          background: 'radial-gradient(circle at 35% 30%, #E11D48 0%, #881337 70%, #4C0519 100%)',
+          border: '2.5px solid #CBD5E1',
+        }}
+        title="100% Ad-Free (Tap for Fullscreen)"
+      >
+        <span className="text-[11px] font-black leading-none text-white tracking-tighter drop-shadow">
+          NO
+        </span>
+        <span className="text-[11px] font-black leading-none text-white tracking-tighter drop-shadow">
+          ADS
+        </span>
+        <Maximize2 className="w-2.5 h-2.5 text-amber-300 mt-0.5 opacity-80" />
+      </button>
 
       {/* Modals */}
       {showSetupModal && (

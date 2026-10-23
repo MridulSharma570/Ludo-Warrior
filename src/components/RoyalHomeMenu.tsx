@@ -60,13 +60,13 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
   const [setupType, setSetupType] = useState<'computer' | 'pass_play' | null>(null);
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic');
   const [playerCount, setPlayerCount] = useState<2 | 3 | 4 | 5 | 6>(4);
-  const [chosenColor, setChosenColor] = useState<FactionColor>('red');
+  const [chosenColor, setChosenColor] = useState<FactionColor>('blue');
   const [aiDifficulty] = useState<AIDifficulty>('hard');
   const [passNames, setPassNames] = useState<Record<FactionColor, string>>({
-    red: 'Player 1',
-    green: 'Player 2',
-    yellow: 'Player 3',
-    blue: 'Player 4',
+    blue: 'Player 1',
+    red: 'Player 2',
+    green: 'Player 3',
+    yellow: 'Player 4',
     purple: 'Player 5',
     orange: 'Player 6',
   });
@@ -125,7 +125,10 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
 
         return {
           color: c,
-          name: isHuman ? profile.commanderName : `${FACTIONS[c].name} Bot`,
+          name:
+            isHuman && profile.commanderName !== 'You'
+              ? profile.commanderName
+              : passNames[c],
           isAI: !isHuman,
           aiDifficulty,
           active: isActive,

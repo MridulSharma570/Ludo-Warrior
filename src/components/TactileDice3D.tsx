@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FACTIONS, FactionColor } from '../engine/ludoEngine';
+import { FactionColor } from '../engine/ludoEngine';
 
 interface TactileDice3DProps {
   value: number | null;
@@ -32,12 +32,10 @@ export const TactileDice3D: React.FC<TactileDice3DProps> = ({
   value,
   rolling,
   canRoll,
-  activeColor,
   onRoll,
   size = 'md',
 }) => {
-  const faction = FACTIONS[activeColor];
-  const displayFace = value ?? 6;
+  const displayFace = value ?? 1;
   const [spinOffset, setSpinOffset] = useState<[number, number, number]>([0, 0, 0]);
 
   useEffect(() => {
@@ -55,7 +53,7 @@ export const TactileDice3D: React.FC<TactileDice3DProps> = ({
   const rotY = rolling ? baseRot[1] + spinOffset[1] : baseRot[1];
   const rotZ = rolling ? baseRot[2] + spinOffset[2] : baseRot[2];
 
-  const cubePx = size === 'lg' ? 62 : size === 'md' ? 50 : 42;
+  const cubePx = size === 'lg' ? 54 : size === 'md' ? 46 : 40;
   const half = cubePx / 2;
 
   const faces: { faceNum: number; transform: string }[] = [
@@ -70,27 +68,19 @@ export const TactileDice3D: React.FC<TactileDice3DProps> = ({
   return (
     <button
       type="button"
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
         if (canRoll && !rolling) onRoll();
       }}
       disabled={!canRoll || rolling}
-      title={canRoll ? 'Tap or press SPACE to Roll Dice' : ''}
-      className={`relative flex items-center justify-center rounded-2xl transition-all duration-200 select-none ${
-        canRoll
-          ? 'cursor-pointer hover:scale-105 active:scale-95'
-          : 'cursor-default'
+      title={canRoll ? 'Tap to Roll Dice' : ''}
+      className={`relative flex items-center justify-center transition-transform duration-150 select-none ${
+        canRoll ? 'cursor-pointer active:scale-90' : 'cursor-default'
       }`}
       style={{
-        width: cubePx + 18,
-        height: cubePx + 18,
-        perspective: '550px',
-        background: canRoll
-          ? `radial-gradient(circle, ${faction.lightHex}33 0%, rgba(15, 23, 42, 0.9) 100%)`
-          : 'rgba(15, 23, 42, 0.75)',
-        border: canRoll ? '2.5px solid #FACC15' : '2px solid rgba(255,255,255,0.18)',
-        boxShadow: canRoll
-          ? '0 0 22px rgba(250, 204, 21, 0.65), inset 0 2px 6px rgba(255,255,255,0.25)'
-          : 'inset 0 2px 5px rgba(0,0,0,0.6)',
+        width: cubePx,
+        height: cubePx,
+        perspective: '500px',
       }}
     >
       <div
@@ -101,14 +91,13 @@ export const TactileDice3D: React.FC<TactileDice3DProps> = ({
           transformStyle: 'preserve-3d',
           transform: `rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg)`,
           transition: rolling
-            ? 'transform 0.44s cubic-bezier(0.18, 0.89, 0.32, 1.24)'
-            : 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
+            ? 'transform 0.42s cubic-bezier(0.18, 0.89, 0.32, 1.24)'
+            : 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
         {faces.map(({ faceNum, transform }) => {
           const pips = PIP_LAYOUTS[faceNum];
           const isOne = faceNum === 1;
-          const isSix = faceNum === 6;
 
           return (
             <div
@@ -119,12 +108,12 @@ export const TactileDice3D: React.FC<TactileDice3DProps> = ({
                 transform,
                 backfaceVisibility: 'hidden',
                 background:
-                  'linear-gradient(135deg, #FFFFFF 0%, #FFFBEB 55%, #FDE68A 100%)',
-                border: '2px solid #D97706',
+                  'linear-gradient(145deg, #FFFFFF 0%, #F1F3F5 58%, #D6D9DC 100%)',
+                border: '1.5px solid #8E9297',
                 boxShadow:
-                  'inset 0 2px 4px rgba(255,255,255,0.95), inset 0 -3px 6px rgba(180, 83, 9, 0.28), 0 4px 10px rgba(0,0,0,0.45)',
+                  'inset 0 2px 3px rgba(255,255,255,0.95), inset 0 -3px 5px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0,0,0,0.35)',
               }}
-              className="absolute inset-0 rounded-xl p-1.5 grid grid-cols-3 grid-rows-3 gap-0.5 items-center justify-items-center"
+              className="absolute inset-0 rounded-[10px] p-1.5 grid grid-cols-3 grid-rows-3 gap-0.5 items-center justify-items-center"
             >
               {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((cellIdx) => {
                 const hasPip = pips.includes(cellIdx);
@@ -134,15 +123,12 @@ export const TactileDice3D: React.FC<TactileDice3DProps> = ({
                     key={cellIdx}
                     className="rounded-full"
                     style={{
-                      width: isOne ? cubePx * 0.27 : cubePx * 0.18,
-                      height: isOne ? cubePx * 0.27 : cubePx * 0.18,
-                      background: isOne
-                        ? 'radial-gradient(circle at 35% 35%, #FB7185, #E11D48 65%, #881337 100%)'
-                        : isSix
-                        ? 'radial-gradient(circle at 35% 35%, #F87171, #DC2626 65%, #7F1D1D 100%)'
-                        : 'radial-gradient(circle at 35% 35%, #334155, #0F172A 75%, #020617 100%)',
+                      width: isOne ? cubePx * 0.28 : cubePx * 0.19,
+                      height: isOne ? cubePx * 0.28 : cubePx * 0.19,
+                      background:
+                        'radial-gradient(circle at 35% 35%, #2B2B2B, #0B0B0B 75%, #000000 100%)',
                       boxShadow:
-                        'inset 0 1px 2px rgba(0,0,0,0.5), 0 1px 1px rgba(255,255,255,0.8)',
+                        'inset 0 1px 2px rgba(0,0,0,0.8), 0 1px 1px rgba(255,255,255,0.85)',
                     }}
                   />
                 );
