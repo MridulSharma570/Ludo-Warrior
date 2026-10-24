@@ -161,28 +161,28 @@ export const YARD_SLOT_COORDS: Record<'red' | 'green' | 'yellow' | 'blue', [numb
 
 export const CITADEL_SLOT_COORDS: Record<'red' | 'green' | 'yellow' | 'blue', [number, number][]> = {
   red: [
-    [7.15, 6.42],
-    [7.85, 6.42],
-    [7.5, 6.72],
-    [7.5, 6.25],
+    [7.12, 6.42],
+    [7.88, 6.42],
+    [7.5, 6.76],
+    [7.5, 6.26],
   ],
   green: [
-    [6.42, 7.15],
-    [6.42, 7.85],
-    [6.72, 7.5],
-    [6.25, 7.5],
+    [6.42, 7.12],
+    [6.42, 7.88],
+    [6.76, 7.5],
+    [6.26, 7.5],
   ],
   yellow: [
-    [7.15, 8.58],
-    [7.85, 8.58],
-    [7.5, 8.28],
-    [7.5, 8.75],
+    [7.12, 8.58],
+    [7.88, 8.58],
+    [7.5, 8.24],
+    [7.5, 8.74],
   ],
   blue: [
-    [8.58, 7.15],
-    [8.58, 7.85],
-    [8.28, 7.5],
-    [8.75, 7.5],
+    [8.58, 7.12],
+    [8.58, 7.88],
+    [8.24, 7.5],
+    [8.74, 7.5],
   ],
 };
 
@@ -213,7 +213,6 @@ function buildRadialBoardGeometry(numArms: 5 | 6): RadialBoardGeometry {
 
   const armAnglesDeg = {} as Record<FactionColor, number>;
   colors.forEach((c, idx) => {
-    // Start at 180° (left) or 162° for 5P so bottom/top symmetry looks great
     const startAngle = numArms === 5 ? 162 : 180;
     armAnglesDeg[c] = (startAngle + idx * stepDeg) % 360;
   });
@@ -223,9 +222,13 @@ function buildRadialBoardGeometry(numArms: 5 | 6): RadialBoardGeometry {
     const along = innerRadius + (rank + 0.5) * tileSize;
     const across = colOffset * tileSize;
     const x = 7.5 + along * Math.cos(rad) - across * Math.sin(rad);
-    const y = 7.5 + along * Math.sin(rad) + across * Math.cos(rad);
+    const y = 7.5 + along * sin(rad) + across * Math.cos(rad);
     return [y, x];
   };
+
+  function sin(r: number): number {
+    return Math.sin(r);
+  }
 
   const mainTrackCoords: [number, number][] = [];
   const safeUniversalIndices = new Set<number>();
@@ -240,21 +243,22 @@ function buildRadialBoardGeometry(numArms: 5 | 6): RadialBoardGeometry {
     const deg = armAnglesDeg[color];
     const baseIdx = armIdx * 13;
 
-    // 0..5: Outgoing track column (colOffset = +1, rank 0..5) -> index 4 (rank 4) is Faction Start!
+    // Clockwise perimeter progression on arm `armIdx`:
+    // 0..5: Outward lane on counter-clockwise side (colOffset = -1, rank 0..5) -> rank 3 (baseIdx + 3) is Star Safe!
     for (let rank = 0; rank <= 5; rank++) {
-      mainTrackCoords.push(armLocalToGrid(deg, rank, 1));
-    }
-    // 6: Outer center turn tile (colOffset = 0, rank 5)
-    mainTrackCoords.push(armLocalToGrid(deg, 5, 0));
-    // 7..12: Incoming track column (colOffset = -1, rank 5..0) -> index 8 (rank 4) is Star Safe!
-    for (let rank = 5; rank >= 0; rank--) {
       mainTrackCoords.push(armLocalToGrid(deg, rank, -1));
     }
+    // 6: Outer center turn tile (colOffset = 0, rank 5) -> Home Stretch entrance for `color`!
+    mainTrackCoords.push(armLocalToGrid(deg, 5, 0));
+    // 7..12: Inward lane on clockwise side (colOffset = +1, rank 5..0) -> rank 4 (baseIdx + 8) is Faction Start!
+    for (let rank = 5; rank >= 0; rank--) {
+      mainTrackCoords.push(armLocalToGrid(deg, rank, 1));
+    }
 
-    startUniversalByColor[color] = baseIdx + 4;
-    safeUniversalIndices.add(baseIdx + 4);
+    startUniversalByColor[color] = baseIdx + 8;
     safeUniversalIndices.add(baseIdx + 8);
-    starOnlyIndices.add(baseIdx + 8);
+    safeUniversalIndices.add(baseIdx + 3);
+    starOnlyIndices.add(baseIdx + 3);
 
     homeStretchCoords[color] = [4, 3, 2, 1, 0].map((rank) =>
       armLocalToGrid(deg, rank, 0)
@@ -276,8 +280,8 @@ function buildRadialBoardGeometry(numArms: 5 | 6): RadialBoardGeometry {
     ];
 
     const citRad = (deg * Math.PI) / 180;
-    citadelSlotCoords[color] = [0.68, 0.96, 1.15, 1.32].map((r, idx) => {
-      const spread = (idx % 2 === 0 ? -1 : 1) * 0.2;
+    citadelSlotCoords[color] = [0.55, 0.78, 0.92, 1.06].map((r, idx) => {
+      const spread = (idx % 2 === 0 ? -1 : 1) * 0.18;
       return [
         7.5 + r * Math.sin(citRad) + spread * Math.cos(citRad),
         7.5 + r * Math.cos(citRad) - spread * Math.sin(citRad),
@@ -315,8 +319,8 @@ export interface PawnToken {
   tokenIndex: number; // 0..3
   /**
    * 4P Square Board:     -1 = Yard, 0..50 = Perimeter (51 tiles), 51..55 = Home Stretch, 56 = Home
-   * 5P Pentagonal Board: -1 = Yard, 0..61 = Perimeter (62 tiles), 62..66 = Home Stretch, 67 = Home
-   * 6P Hexagonal Board:  -1 = Yard, 0..74 = Perimeter (75 tiles), 75..79 = Home Stretch, 80 = Home
+   * 5P Pentagonal Board: -1 = Yard, 0..63 = Perimeter (64 tiles), 64..68 = Home Stretch, 69 = Home
+   * 6P Hexagonal Board:  -1 = Yard, 0..76 = Perimeter (77 tiles), 77..81 = Home Stretch, 82 = Home
    */
   step: number;
 }
@@ -330,6 +334,7 @@ export interface PlayerState {
   connected: boolean;
   avatarIndex: number;
   tokens: PawnToken[];
+  lastDiceValue?: number;
   stats: {
     sixesRolled: number;
     capturesMade: number;
@@ -389,14 +394,14 @@ export interface GameState {
 }
 
 export function getHomeStep(boardType: BoardType = 'square4p'): number {
-  if (boardType === 'pent5p') return 67;
-  if (boardType === 'hex6p') return 80;
+  if (boardType === 'pent5p') return 69;
+  if (boardType === 'hex6p') return 82;
   return 56;
 }
 
 export function getMaxPerimeterStep(boardType: BoardType = 'square4p'): number {
-  if (boardType === 'pent5p') return 61;
-  if (boardType === 'hex6p') return 74;
+  if (boardType === 'pent5p') return 63;
+  if (boardType === 'hex6p') return 76;
   return 50;
 }
 
@@ -415,11 +420,11 @@ export function getUniversalIndex(
   if (step < 0 || step > maxPerim) return null;
 
   if (boardType === 'pent5p') {
-    const startIdx = PENT_5P_GEOMETRY.startUniversalByColor[color] ?? 4;
+    const startIdx = PENT_5P_GEOMETRY.startUniversalByColor[color] ?? 8;
     return (startIdx + step) % 65;
   }
   if (boardType === 'hex6p') {
-    const startIdx = HEX_6P_GEOMETRY.startUniversalByColor[color] ?? 4;
+    const startIdx = HEX_6P_GEOMETRY.startUniversalByColor[color] ?? 8;
     return (startIdx + step) % 78;
   }
 
@@ -592,6 +597,7 @@ export function createInitialGameState(options: {
       connected: true,
       avatarIndex: cfg.avatarIndex ?? i,
       tokens,
+      lastDiceValue: 6,
       stats: {
         sixesRolled: 0,
         capturesMade: 0,
@@ -633,16 +639,32 @@ export function getValidMovesForRoll(
   const homeStep = getHomeStep(state.boardType);
   const validIndices: number[] = [];
 
+  const isBlockedByEnemyPair = (targetStep: number): boolean => {
+    if (state.mode !== 'master') return false;
+    const destU = getUniversalIndex(playerColor, targetStep, state.boardType);
+    if (destU === null || isSafeUniversalIndex(destU, state.boardType)) return false;
+
+    for (const otherColor of state.activeOrder) {
+      if (otherColor === playerColor) continue;
+      const otherPlayer = state.players[otherColor];
+      const countAtDest = otherPlayer.tokens.filter(
+        (t) => getUniversalIndex(otherColor, t.step, state.boardType) === destU
+      ).length;
+      if (countAtDest >= 2) return true;
+    }
+    return false;
+  };
+
   for (const token of player.tokens) {
     if (token.step === homeStep) continue;
 
     if (token.step === -1) {
-      if (diceValue === 6) {
+      if (diceValue === 6 && !isBlockedByEnemyPair(0)) {
         validIndices.push(token.tokenIndex);
       }
     } else {
       const targetStep = token.step + diceValue;
-      if (targetStep <= homeStep) {
+      if (targetStep <= homeStep && !isBlockedByEnemyPair(targetStep)) {
         validIndices.push(token.tokenIndex);
       }
     }
@@ -653,12 +675,14 @@ export function getValidMovesForRoll(
 
 export function getNextTurnColor(state: GameState): FactionColor {
   const order = state.activeOrder;
+  if (order.length === 0) return state.currentTurn;
   const currentIdx = order.indexOf(state.currentTurn);
+  const startIdx = currentIdx === -1 ? 0 : currentIdx;
   const targetCount = getTargetCitadelCount(state.mode);
   const homeStep = getHomeStep(state.boardType);
 
   for (let offset = 1; offset <= order.length; offset++) {
-    const candidate = order[(currentIdx + offset) % order.length];
+    const candidate = order[(startIdx + offset) % order.length];
     const p = state.players[candidate];
     if (!p || !p.active) continue;
 
@@ -682,9 +706,12 @@ export function applyDiceRoll(
   const rolled = forcedValue ?? Math.floor(Math.random() * 6) + 1;
   const player = state.players[state.currentTurn];
   state.diceValue = rolled;
+  if (player) {
+    player.lastDiceValue = rolled;
+  }
 
   if (rolled === 6) {
-    player.stats.sixesRolled += 1;
+    if (player) player.stats.sixesRolled += 1;
     state.consecutiveSixes += 1;
   } else {
     state.consecutiveSixes = 0;
@@ -732,7 +759,7 @@ export function executeTokenMove(state: GameState, tokenIndex: number): MoveExec
   const dice = state.diceValue ?? 1;
   const homeStep = getHomeStep(state.boardType);
 
-  if (!state.validTokenIndices.includes(tokenIndex)) {
+  if (!player || !state.validTokenIndices.includes(tokenIndex)) {
     return {
       valid: false,
       tokenId: `${playerColor}-${tokenIndex}`,
@@ -813,6 +840,7 @@ export function executeTokenMove(state: GameState, tokenIndex: number): MoveExec
   if (state.winnerOrder.length >= 1) {
     state.status = 'finished';
     state.turnPhase = 'GAME_OVER';
+    state.diceValue = null;
     gameWonBy = state.winnerOrder[0];
   }
 
