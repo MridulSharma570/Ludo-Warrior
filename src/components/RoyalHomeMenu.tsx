@@ -94,7 +94,11 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
       setDeferredInstallPrompt(null);
       return;
     }
-    window.open('https://github.com/MridulSharma570/Ludo-Warrior/releases/latest', '_blank', 'noopener,noreferrer');
+    window.open(
+      'https://github.com/MridulSharma570/Ludo-Warrior/releases/latest',
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
 
   const availableColors =
@@ -104,24 +108,43 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
       ? TURN_ORDER_6P
       : TURN_ORDER_4P;
 
+  useEffect(() => {
+    if (!availableColors.includes(chosenColor)) {
+      setChosenColor('blue');
+    }
+  }, [availableColors, chosenColor]);
+
+  // Exact active color set for Pass N Play
+  const getPassPlayActiveColors = (count: 2 | 3 | 4 | 5 | 6): FactionColor[] => {
+    if (count === 2) return ['blue', 'green'];
+    if (count === 3) return ['blue', 'red', 'green'];
+    if (count === 4) return ['blue', 'red', 'green', 'yellow'];
+    if (count === 5) return TURN_ORDER_5P;
+    return TURN_ORDER_6P;
+  };
+
   const handleLaunchConfiguredMatch = () => {
     soundEngine.playModeStart();
     if (setupType === 'computer') {
       const order = availableColors;
-      const validHumanColor = order.includes(chosenColor) ? chosenColor : 'red';
+      const validHumanColor = order.includes(chosenColor) ? chosenColor : 'blue';
+
+      // Build exact set of `playerCount` active colors always including `validHumanColor`
+      const activeSet = new Set<FactionColor>();
+      activeSet.add(validHumanColor);
+
+      if (playerCount === 2) {
+        activeSet.add(FACTIONS[validHumanColor].oppositeColor4P);
+      } else {
+        const startIdx = Math.max(0, order.indexOf(validHumanColor));
+        for (let offset = 1; offset < order.length && activeSet.size < playerCount; offset++) {
+          activeSet.add(order[(startIdx + offset) % order.length]);
+        }
+      }
 
       const slots: SlotSetupConfig[] = TURN_ORDER_6P.map((c) => {
-        const idxInOrder = order.indexOf(c);
         const isHuman = c === validHumanColor;
-        let isActive = false;
-
-        if (playerCount === 2) {
-          const opp = FACTIONS[validHumanColor].oppositeColor4P;
-          isActive = c === validHumanColor || c === opp;
-        } else {
-          isActive = idxInOrder !== -1 && idxInOrder < playerCount;
-          if (isHuman) isActive = true;
-        }
+        const isActive = activeSet.has(c);
 
         return {
           color: c,
@@ -138,23 +161,14 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
       onStartLocalMatch(selectedMode, slots);
       setSetupType(null);
     } else if (setupType === 'pass_play') {
-      const order = availableColors;
-      const slots: SlotSetupConfig[] = TURN_ORDER_6P.map((c, idx) => {
-        const idxInOrder = order.indexOf(c);
-        let isActive = false;
-        if (playerCount === 2) {
-          isActive = c === 'red' || c === 'yellow';
-        } else {
-          isActive = idxInOrder !== -1 && idxInOrder < playerCount;
-        }
-        return {
-          color: c,
-          name: passNames[c] || `Player ${idx + 1}`,
-          isAI: false,
-          aiDifficulty: 'hard',
-          active: isActive,
-        };
-      });
+      const activeColors = getPassPlayActiveColors(playerCount);
+      const slots: SlotSetupConfig[] = TURN_ORDER_6P.map((c, idx) => ({
+        color: c,
+        name: passNames[c] || `Player ${idx + 1}`,
+        isAI: false,
+        aiDifficulty: 'hard',
+        active: activeColors.includes(c),
+      }));
       onStartLocalMatch(selectedMode, slots);
       setSetupType(null);
     }
@@ -373,7 +387,10 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
           onClick={handleInstallOrDownload}
           className="android-btn-press inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#0A224A] border border-[#FFCB05] text-[#FFCB05] text-[11px] font-black uppercase tracking-wider shadow"
         >
-          ⬇ {deferredInstallPrompt ? 'Install App to Device' : 'Download / Install App (Android, PC & Web)'}
+          ⬇{' '}
+          {deferredInstallPrompt
+            ? 'Install App to Device'
+            : 'Download / Install App (Android, PC & Web)'}
         </button>
         <span>4P Square • 5P Pentagonal • 6P Hexagonal Boards</span>
       </footer>
@@ -507,30 +524,26 @@ export const RoyalHomeMenu: React.FC<RoyalHomeMenuProps> = ({
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-sky-200 mb-1 text-center">
                   Player Names
                 </label>
-                {availableColors
-                  .filter((c, i) =>
-                    playerCount === 2 ? c === 'red' || c === 'yellow' : i < playerCount
-                  )
-                  .map((c) => {
-                    const f = FACTIONS[c];
-                    return (
-                      <div key={c} className="flex items-center gap-2">
-                        <span
-                          className="w-6 h-6 rounded-full border-2 border-white shrink-0"
-                          style={{ background: f.primaryHex }}
-                        />
-                        <input
-                          type="text"
-                          value={passNames[c]}
-                          onChange={(e) =>
-                            setPassNames((prev) => ({ ...prev, [c]: e.target.value }))
-                          }
-                          maxLength={16}
-                          className="flex-1 px-3 py-1.5 rounded-xl bg-[#061836] border border-white/25 text-xs font-bold text-white"
-                        />
-                      </div>
-                    );
-                  })}
+                {getPassPlayActiveColors(playerCount).map((c) => {
+                  const f = FACTIONS[c];
+                  return (
+                    <div key={c} className="flex items-center gap-2">
+                      <span
+                        className="w-6 h-6 rounded-full border-2 border-white shrink-0"
+                        style={{ background: f.primaryHex }}
+                      />
+                      <input
+                        type="text"
+                        value={passNames[c]}
+                        onChange={(e) =>
+                          setPassNames((prev) => ({ ...prev, [c]: e.target.value }))
+                        }
+                        maxLength={16}
+                        className="flex-1 px-3 py-1.5 rounded-xl bg-[#061836] border border-white/25 text-xs font-bold text-white"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 

@@ -75,11 +75,12 @@ const LudoKingLineArrow: React.FC<{
   cy: number;
   dir: 'right' | 'down' | 'left' | 'up';
   color: string;
-}> = ({ cx, cy, dir, color }) => {
+  scale?: number;
+}> = ({ cx, cy, dir, color, scale = 1 }) => {
   const rot =
     dir === 'right' ? 0 : dir === 'down' ? 90 : dir === 'left' ? 180 : -90;
   return (
-    <g transform={`translate(${cx}, ${cy}) rotate(${rot})`}>
+    <g transform={`translate(${cx}, ${cy}) rotate(${rot}) scale(${scale})`}>
       <line
         x1={-24}
         y1={0}
@@ -202,18 +203,8 @@ const LudoKingPawn: React.FC<{
         />
 
         {/* 2. Inner Recessed Colored Sphere inside the Head (Exact Ludo King Detail) */}
-        <circle
-          cx={0}
-          cy={-51}
-          r={20.5}
-          fill="#1B1B1B"
-        />
-        <circle
-          cx={1}
-          cy={-49.5}
-          r={19.5}
-          fill={`url(#lkPawnGrad-${color})`}
-        />
+        <circle cx={0} cy={-51} r={20.5} fill="#1B1B1B" />
+        <circle cx={1} cy={-49.5} r={19.5} fill={`url(#lkPawnGrad-${color})`} />
 
         {/* Top-Left Inner Shadow Crescent inside Colored Sphere */}
         <path
@@ -254,6 +245,7 @@ const LudoKingPawn: React.FC<{
 export const BoardArena: React.FC<BoardArenaProps> = ({
   gameState,
   activeAnim,
+  clashEffects,
   canInteractMove,
   onSelectToken,
 }) => {
@@ -340,18 +332,28 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
   }[] = [];
 
   for (const group of cellGroups.values()) {
-    group.forEach((pawn, idx) => {
-      const [ox, oy] = getStackOffset(idx, group.length);
+    // Sort within group so movable pawns are last (on top) and carry the stack badge
+    const sortedGroup = [...group].sort((a, b) => {
+      if (a.isMovable !== b.isMovable) return a.isMovable ? 1 : -1;
+      return 0;
+    });
+
+    sortedGroup.forEach((pawn, idx) => {
+      const [ox, oy] = getStackOffset(idx, sortedGroup.length);
       const cx = pawn.coord[1] * CELL + ox;
       const inYard = pawn.step === -1;
-      const cy = pawn.coord[0] * CELL + oy + (inYard ? 8 : isRadial ? 10 : 14);
+      const inHome = pawn.step === homeStep;
+      const cy =
+        pawn.coord[0] * CELL + oy + (inYard ? 8 : inHome ? 6 : isRadial ? 10 : 14);
       const scale = pawn.isAnimating
         ? baseScale * 1.12
         : inYard
         ? baseScale * 1.08
-        : group.length === 1
+        : inHome
+        ? baseScale * 0.62
+        : sortedGroup.length === 1
         ? baseScale * 0.96
-        : group.length === 2
+        : sortedGroup.length === 2
         ? baseScale * 0.8
         : baseScale * 0.72;
       const jumpHeight = pawn.isAnimating ? Math.sin(pawn.hopProgress * Math.PI) * 42 : 0;
@@ -362,8 +364,8 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
         cy,
         scale,
         jumpHeight,
-        stackCount: group.length,
-        showStackBadge: idx === group.length - 1,
+        stackCount: sortedGroup.length,
+        showStackBadge: idx === sortedGroup.length - 1,
       });
     });
   }
@@ -510,12 +512,7 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                       const cy = slotRow * CELL;
                       return (
                         <g key={`slot4p-${color}-${sIdx}`}>
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={47}
-                            fill={f.primaryHex}
-                          />
+                          <circle cx={cx} cy={cy} r={47} fill={f.primaryHex} />
                           <circle
                             cx={cx}
                             cy={cy}
@@ -568,7 +565,7 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                       stroke="#262626"
                       strokeWidth={2}
                     />
-                    {/* 4 Star Safe Squares (Large White Star with Black Outline, No Star on Colored Start Squares) */}
+                    {/* 4 Star Safe Squares */}
                     {isStarSafe && (
                       <CleanStar
                         cx={x + 50}
@@ -768,8 +765,9 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                         const y = (lane - 0.5) * tilePx;
 
                         const isStartSquare = lane === 1 && d === 4;
-                        const isStarSquare = lane === -1 && d === 2;
+                        const isStarSquare = lane === -1 && d === 3;
                         const isHomeStretch = lane === 0 && d < 5;
+                        const isHomeEntrance = lane === 0 && d === 5;
 
                         let fillHex = '#FFFFFF';
                         if (isStartSquare || isHomeStretch) {
@@ -795,6 +793,15 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
                                 innerR={tilePx * 0.14}
                                 fill="#FFFFFF"
                                 stroke="#262626"
+                              />
+                            )}
+                            {isHomeEntrance && (
+                              <LudoKingLineArrow
+                                cx={x + tilePx / 2}
+                                cy={y + tilePx / 2}
+                                dir="left"
+                                color={color === 'yellow' ? f.darkHex : f.primaryHex}
+                                scale={0.72}
                               />
                             )}
                           </g>
@@ -849,6 +856,38 @@ export const BoardArena: React.FC<BoardArenaProps> = ({
               />
             )
           )}
+
+          {/* Render Floating Clash / Home Badges */}
+          {clashEffects.map((fx) => {
+            const cx = fx.coord[1] * CELL;
+            const cy = fx.coord[0] * CELL - 46;
+            const f = FACTIONS[fx.color];
+            return (
+              <g key={fx.id} transform={`translate(${cx}, ${cy})`} className="pointer-events-none">
+                <rect
+                  x={-84}
+                  y={-22}
+                  width={168}
+                  height={40}
+                  rx={12}
+                  fill={fx.type === 'capture' ? '#ED1C24' : f.primaryHex}
+                  stroke="#FFFFFF"
+                  strokeWidth={3}
+                />
+                <text
+                  x={0}
+                  y={5}
+                  textAnchor="middle"
+                  fill="#FFFFFF"
+                  fontSize="22"
+                  fontWeight="900"
+                  fontFamily="Plus Jakarta Sans, sans-serif"
+                >
+                  {fx.label}
+                </text>
+              </g>
+            );
+          })}
         </svg>
       </div>
     </div>

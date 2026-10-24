@@ -68,7 +68,10 @@ const MiniPodPawnIcon: React.FC<{ color: FactionColor; compact?: boolean }> = ({
 /**
  * Bouncing 3D Golden-Orange Turn Arrow pointing at the Active Dice Tray (Exact match to Image 2)
  */
-const GoldenTurnArrow: React.FC<{ pointDir: 'left' | 'right' }> = ({ pointDir }) => {
+const GoldenTurnArrow: React.FC<{ pointDir: 'left' | 'right'; compact?: boolean }> = ({
+  pointDir,
+  compact = false,
+}) => {
   return (
     <div
       className="flex items-center justify-center shrink-0 pointer-events-none"
@@ -81,7 +84,11 @@ const GoldenTurnArrow: React.FC<{ pointDir: 'left' | 'right' }> = ({ pointDir })
     >
       <svg
         viewBox="0 0 56 54"
-        className="w-9 h-9 sm:w-10 sm:h-10 drop-shadow-[0_3px_4px_rgba(0,0,0,0.65)]"
+        className={
+          compact
+            ? 'w-7 h-7 drop-shadow-[0_2px_3px_rgba(0,0,0,0.65)]'
+            : 'w-9 h-9 sm:w-10 sm:h-10 drop-shadow-[0_3px_4px_rgba(0,0,0,0.65)]'
+        }
         style={{
           transform: pointDir === 'right' ? 'scaleX(-1)' : 'none',
         }}
@@ -200,7 +207,7 @@ export const PlayerHudCard: React.FC<PlayerHudCardProps> = ({
           >
             {isCurrentTurn ? (
               <TactileDice3D
-                value={diceValue}
+                value={diceValue ?? player.lastDiceValue ?? 6}
                 rolling={diceRolling}
                 canRoll={canHumanRoll}
                 activeColor={player.color}
@@ -213,8 +220,11 @@ export const PlayerHudCard: React.FC<PlayerHudCardProps> = ({
       </div>
 
       {/* 3. Bouncing 3D Golden-Orange Arrow pointing at Active Player's Dice Tray when ready to roll */}
-      {isCurrentTurn && turnPhase === 'ROLL' && !diceRolling && canHumanRoll && !isCompact3Col && (
-        <GoldenTurnArrow pointDir={align === 'right' ? 'right' : 'left'} />
+      {isCurrentTurn && turnPhase === 'ROLL' && !diceRolling && canHumanRoll && (
+        <GoldenTurnArrow
+          pointDir={align === 'right' ? 'right' : 'left'}
+          compact={isCompact3Col}
+        />
       )}
     </div>
   );

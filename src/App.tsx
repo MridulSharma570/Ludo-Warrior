@@ -4,10 +4,10 @@ import {
   BoardThemeId,
   CapturedPawnReturn,
   EmoteEvent,
-  FACTIONS,
   FactionColor,
   GameMode,
   GameState,
+  MoveExecutionResult,
   TURN_ORDER_5P,
   TURN_ORDER_6P,
   applyDiceRoll,
@@ -163,6 +163,10 @@ export const App: React.FC = () => {
 
   // Dice & Step-by-Step Hop Animation State
   const [diceRolling, setDiceRolling] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const isAnimatingRef = useRef(false);
+  const matchSessionIdRef = useRef(1);
+
   const [activeAnim, setActiveAnim] = useState<ActiveTokenAnimation | null>(null);
   const [clashEffects, setClashEffects] = useState<ClashEffect[]>([]);
   const [activeEmotes, setActiveEmotes] = useState<Partial<Record<FactionColor, EmoteEvent>>>({});
@@ -174,7 +178,18 @@ export const App: React.FC = () => {
   const [myOnlineColor, setMyOnlineColor] = useState<FactionColor | null>(null);
   const [publicRooms, setPublicRooms] = useState<OnlineRoomSummary[]>([]);
 
-  const isAnimatingRef = useRef(false);
+  const setAnimatingState = useCallback((val: boolean) => {
+    isAnimatingRef.current = val;
+    setIsAnimating(val);
+  }, []);
+
+  const cancelOngoingAnimations = useCallback(() => {
+    matchSessionIdRef.current += 1;
+    isAnimatingRef.current = false;
+    setIsAnimating(false);
+    setDiceRolling(false);
+    setActiveAnim(null);
+  }, []);
 
   // Android Hardware Back Button / Gesture Support
   useEffect(() => {
@@ -196,12 +211,20 @@ export const App: React.FC = () => {
         return;
       }
       if (screen === 'game') {
+        cancelOngoingAnimations();
         setScreen('home');
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [screen, showSetupModal, showRulesModal, showOnlineModal, showCornerMenu]);
+  }, [
+    screen,
+    showSetupModal,
+    showRulesModal,
+    showOnlineModal,
+    showCornerMenu,
+    cancelOngoingAnimations,
+  ]);
 
   const updateProfile = useCallback((updater: (prev: WarriorProfile) => WarriorProfile) => {
     setProfile((prev) => {
@@ -227,66 +250,6 @@ export const App: React.FC = () => {
     []
   );
 
-  // Socket.IO connection
-  useEffect(() => {
-    const socket = io({
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-    });
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      setOnlineConnected(true);
-      socket.emit('lobby:list');
-    });
-
-    socket.on('disconnect', () => {
-      setOnlineConnected(false);
-    });
-
-    socket.on('lobby:rooms', (rooms: OnlineRoomSummary[]) => {
-      setPublicRooms(rooms || []);
-    });
-
-    socket.on(
-      'room:joined',
-      (payload: { roomId: string; assignedColor: FactionColor; state: GameState }) => {
-        setCurrentOnlineRoomId(payload.roomId);
-        setMyOnlineColor(payload.assignedColor);
-        setGameState(payload.state);
-        window.history.pushState({ ludoScreen: 'game' }, '');
-        setScreen('game');
-        soundEngine.playModeStart();
-      }
-    );
-
-    socket.on('room:state', (nextState: GameState) => {
-      setGameState(nextState);
-      if (nextState.status === 'finished') {
-        soundEngine.playVictoryFanfare();
-        setShowVictoryModal(true);
-      }
-    });
-
-    socket.on('room:emote', (emoteEvent: EmoteEvent) => {
-      soundEngine.playClick();
-      setActiveEmotes((prev) => ({ ...prev, [emoteEvent.color]: emoteEvent }));
-      setTimeout(() => {
-        setActiveEmotes((prev) => {
-          const copy = { ...prev };
-          if (copy[emoteEvent.color]?.id === emoteEvent.id) {
-            delete copy[emoteEvent.color];
-          }
-          return copy;
-        });
-      }, 3200);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
   // Unhurried, smooth tile-by-tile hop animation & step-by-step captured piece rewind
   const runHopAndCaptureAnimation = useCallback(
     (
@@ -298,6 +261,7 @@ export const App: React.FC = () => {
       reachedCitadel: boolean,
       finalState: GameState
     ) => {
+      const sessionId = matchSessionIdRef.current;
       const pathCoords = getStepByStepCoords(
         color,
         tokenIndex,
@@ -308,44 +272,103 @@ export const App: React.FC = () => {
 
       if (pathCoords.length <= 1) {
         setGameState(finalState);
-        isAnimatingRef.current = false;
+        setAnimatingState(false);
         return;
       }
 
-      isAnimatingRef.current = true;
+      setAnimatingState(true);
       const totalHops = pathCoords.length - 1;
       let currentHop = 0;
 
+      const finishMoveLifecycle = () => {
+        if (sessionId !== matchSessionIdRef.current) return;
+        setActiveAnim(null);
+        setGameState(finalState);
+        setAnimatingState(false);
+
+        if (finalState.status === 'finished') {
+          soundEngine.playVictoryFanfare();
+          const winnerColor = finalState.winnerOrder[0];
+          const winnerPlayer = finalState.players[winnerColor];
+          const humanWon = winnerPlayer && !winnerPlayer.isAI;
+          const goldReward = humanWon ? 500 : 120;
+          const xpReward = humanWon ? 350 : 90;
+          setLastEarnedGold(goldReward);
+          setLastEarnedXp(xpReward);
+
+          updateProfile((prev) => ({
+            ...prev,
+            coins: prev.coins + goldReward,
+            xp: prev.xp + xpReward,
+            level: Math.floor((prev.xp + xpReward) / 500) + 1,
+            matchesPlayed: prev.matchesPlayed + 1,
+            matchesWon: humanWon ? prev.matchesWon + 1 : prev.matchesWon,
+            winStreak: humanWon ? prev.winStreak + 1 : 0,
+          }));
+
+          setShowVictoryModal(true);
+        }
+      };
+
       const animateSingleHop = () => {
+        if (sessionId !== matchSessionIdRef.current) return;
+
         if (currentHop >= totalHops) {
           const finalCoord = pathCoords[pathCoords.length - 1];
+
+          // Update attacker's token position in gameState right away so it stays at `toStep` while any captured piece rewinds!
+          setGameState((prev) => {
+            const next: GameState = JSON.parse(JSON.stringify(prev));
+            if (next.players[color]?.tokens[tokenIndex]) {
+              next.players[color].tokens[tokenIndex].step = toStep;
+            }
+            next.validTokenIndices = [];
+            return next;
+          });
 
           if (capturedList.length > 0) {
             soundEngine.playCaptureClash();
             spawnClashEffect(finalCoord, color, 'CAPTURED!', 'capture');
 
-            const victim = capturedList[0];
-            const rewindCoords = getCaptureRewindCoords(
-              victim.color,
-              victim.tokenIndex,
-              victim.fromStep,
-              finalState.boardType
-            );
+            let victimIdx = 0;
 
-            if (rewindCoords.length > 1) {
+            const rewindNextVictim = () => {
+              if (sessionId !== matchSessionIdRef.current) return;
+              if (victimIdx >= capturedList.length) {
+                finishMoveLifecycle();
+                return;
+              }
+
+              const victim = capturedList[victimIdx];
+              const rewindCoords = getCaptureRewindCoords(
+                victim.color,
+                victim.tokenIndex,
+                victim.fromStep,
+                finalState.boardType
+              );
+
+              if (rewindCoords.length <= 1) {
+                victimIdx++;
+                rewindNextVictim();
+                return;
+              }
+
               let rSeg = 0;
               const totalRSegs = rewindCoords.length - 1;
 
               const animateRewindStep = () => {
+                if (sessionId !== matchSessionIdRef.current) return;
                 if (rSeg >= totalRSegs) {
-                  setActiveAnim(null);
-                  setGameState(finalState);
-                  isAnimatingRef.current = false;
-
-                  if (finalState.status === 'finished') {
-                    soundEngine.playVictoryFanfare();
-                    setShowVictoryModal(true);
-                  }
+                  // Place rewound victim back in yard (-1) before next victim or completion
+                  setGameState((prev) => {
+                    const next: GameState = JSON.parse(JSON.stringify(prev));
+                    if (next.players[victim.color]?.tokens[victim.tokenIndex]) {
+                      next.players[victim.color].tokens[victim.tokenIndex].step = -1;
+                    }
+                    return next;
+                  });
+                  victimIdx++;
+                  rewindNextVictim();
                   return;
                 }
 
@@ -355,6 +378,7 @@ export const App: React.FC = () => {
                 const segStartTime = performance.now();
 
                 const stepRewindFrame = (now: number) => {
+                  if (sessionId !== matchSessionIdRef.current) return;
                   const t = Math.min(1, (now - segStartTime) / REWIND_SEG_MS);
                   const rx = rStart[0] + (rEnd[0] - rStart[0]) * t;
                   const ry = rStart[1] + (rEnd[1] - rStart[1]) * t;
@@ -380,11 +404,12 @@ export const App: React.FC = () => {
               };
 
               animateRewindStep();
-              return;
-            }
+            };
+
+            rewindNextVictim();
+            return;
           }
 
-          setActiveAnim(null);
           if (reachedCitadel) {
             soundEngine.playCitadelAscend();
             spawnClashEffect(finalCoord, color, 'HOME!', 'citadel');
@@ -399,31 +424,7 @@ export const App: React.FC = () => {
             }
           }
 
-          setGameState(finalState);
-          isAnimatingRef.current = false;
-
-          if (finalState.status === 'finished') {
-            soundEngine.playVictoryFanfare();
-            const winnerColor = finalState.winnerOrder[0];
-            const winnerPlayer = finalState.players[winnerColor];
-            const humanWon = winnerPlayer && !winnerPlayer.isAI;
-            const goldReward = humanWon ? 500 : 120;
-            const xpReward = humanWon ? 350 : 90;
-            setLastEarnedGold(goldReward);
-            setLastEarnedXp(xpReward);
-
-            updateProfile((prev) => ({
-              ...prev,
-              coins: prev.coins + goldReward,
-              xp: prev.xp + xpReward,
-              level: Math.floor((prev.xp + xpReward) / 500) + 1,
-              matchesPlayed: prev.matchesPlayed + 1,
-              matchesWon: humanWon ? prev.matchesWon + 1 : prev.matchesWon,
-              winStreak: humanWon ? prev.winStreak + 1 : 0,
-            }));
-
-            setShowVictoryModal(true);
-          }
+          finishMoveLifecycle();
           return;
         }
 
@@ -434,6 +435,7 @@ export const App: React.FC = () => {
         const startTime = performance.now();
 
         const stepFrame = (now: number) => {
+          if (sessionId !== matchSessionIdRef.current) return;
           const elapsed = now - startTime;
           const progress = Math.min(1, elapsed / HOP_DURATION_MS);
           const ease = 1 - Math.pow(1 - progress, 2.2);
@@ -461,8 +463,138 @@ export const App: React.FC = () => {
 
       animateSingleHop();
     },
-    [spawnClashEffect, updateProfile]
+    [setAnimatingState, spawnClashEffect, updateProfile]
   );
+
+  // Socket.IO connection
+  useEffect(() => {
+    const socket = io({
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setOnlineConnected(true);
+      socket.emit('lobby:list');
+    });
+
+    socket.on('disconnect', () => {
+      setOnlineConnected(false);
+    });
+
+    socket.on('lobby:rooms', (rooms: OnlineRoomSummary[]) => {
+      setPublicRooms(rooms || []);
+    });
+
+    socket.on(
+      'room:joined',
+      (payload: { roomId: string; assignedColor: FactionColor; state: GameState }) => {
+        cancelOngoingAnimations();
+        setCurrentOnlineRoomId(payload.roomId);
+        setMyOnlineColor(payload.assignedColor);
+        setGameState(payload.state);
+        setShowOnlineModal(false);
+        window.history.pushState({ ludoScreen: 'game' }, '');
+        setScreen('game');
+        soundEngine.playModeStart();
+      }
+    );
+
+    socket.on('game:state', (nextState: GameState) => {
+      setGameState(nextState);
+      if (nextState.status === 'finished') {
+        soundEngine.playVictoryFanfare();
+        setShowVictoryModal(true);
+      }
+    });
+
+    socket.on(
+      'game:rolled',
+      (payload: {
+        rollingColor?: FactionColor;
+        rolled: number;
+        threeSixesForfeit?: boolean;
+        validTokenIndices?: number[];
+        state: GameState;
+      }) => {
+        const sessionId = matchSessionIdRef.current;
+        soundEngine.playDiceRoll();
+        setDiceRolling(true);
+
+        setTimeout(() => {
+          if (sessionId !== matchSessionIdRef.current) return;
+          setDiceRolling(false);
+          if (payload.threeSixesForfeit) {
+            soundEngine.playCaptureClash();
+          } else if (payload.rolled === 6) {
+            soundEngine.playRollSix();
+          }
+
+          if (
+            payload.rollingColor &&
+            ((payload.validTokenIndices && payload.validTokenIndices.length === 0) ||
+              payload.threeSixesForfeit)
+          ) {
+            setAnimatingState(true);
+            setGameState((prev) => ({
+              ...prev,
+              currentTurn: payload.rollingColor!,
+              diceValue: payload.rolled,
+              turnPhase: 'MOVE',
+              validTokenIndices: [],
+            }));
+            setTimeout(() => {
+              if (sessionId !== matchSessionIdRef.current) return;
+              setAnimatingState(false);
+              setGameState(payload.state);
+            }, 600);
+            return;
+          }
+
+          setGameState(payload.state);
+        }, 380);
+      }
+    );
+
+    socket.on(
+      'game:moved',
+      (payload: { result: MoveExecutionResult; state: GameState }) => {
+        const { result, state } = payload;
+        if (!result || !result.valid) {
+          setGameState(state);
+          return;
+        }
+        runHopAndCaptureAnimation(
+          result.color,
+          result.tokenIndex,
+          result.fromStep,
+          result.toStep,
+          result.capturedTokens,
+          result.reachedCitadel,
+          state
+        );
+      }
+    );
+
+    socket.on('game:emote', (emoteEvent: EmoteEvent) => {
+      soundEngine.playClick();
+      setActiveEmotes((prev) => ({ ...prev, [emoteEvent.color]: emoteEvent }));
+      setTimeout(() => {
+        setActiveEmotes((prev) => {
+          const copy = { ...prev };
+          if (copy[emoteEvent.color]?.id === emoteEvent.id) {
+            delete copy[emoteEvent.color];
+          }
+          return copy;
+        });
+      }, 3200);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [cancelOngoingAnimations, runHopAndCaptureAnimation, setAnimatingState]);
 
   // Execute token move
   const handleSelectToken = useCallback(
@@ -520,20 +652,17 @@ export const App: React.FC = () => {
     if (gameState.turnPhase !== 'ROLL' || gameState.status !== 'playing') return;
 
     if (currentOnlineRoomId && socketRef.current) {
-      soundEngine.playDiceRoll();
-      setDiceRolling(true);
-      setTimeout(() => {
-        setDiceRolling(false);
-        socketRef.current?.emit('game:roll', { roomId: currentOnlineRoomId });
-      }, 390);
+      socketRef.current.emit('game:roll', { roomId: currentOnlineRoomId });
       return;
     }
 
+    const sessionId = matchSessionIdRef.current;
     const rollingColor = gameState.currentTurn;
     soundEngine.playDiceRoll();
     setDiceRolling(true);
 
     setTimeout(() => {
+      if (sessionId !== matchSessionIdRef.current) return;
       setDiceRolling(false);
       const clonedState: GameState = JSON.parse(JSON.stringify(gameState));
       const result = applyDiceRoll(clonedState);
@@ -546,17 +675,22 @@ export const App: React.FC = () => {
 
       // If no valid moves (or three 6s forfeit), show the rolled number inside the rolling player's tray for 650ms first (just like Ludo King) before passing the turn
       if (result.validTokenIndices.length === 0 || result.threeSixesForfeit) {
-        isAnimatingRef.current = true;
-        setGameState((prev) => ({
-          ...prev,
-          currentTurn: rollingColor,
-          diceValue: result.rolled,
-          turnPhase: 'MOVE',
-          validTokenIndices: [],
-        }));
+        setAnimatingState(true);
+        setGameState((prev) => {
+          const next: GameState = JSON.parse(JSON.stringify(prev));
+          next.currentTurn = rollingColor;
+          next.diceValue = result.rolled;
+          if (next.players[rollingColor]) {
+            next.players[rollingColor].lastDiceValue = result.rolled;
+          }
+          next.turnPhase = 'MOVE';
+          next.validTokenIndices = [];
+          return next;
+        });
 
         setTimeout(() => {
-          isAnimatingRef.current = false;
+          if (sessionId !== matchSessionIdRef.current) return;
+          setAnimatingState(false);
           setGameState(clonedState);
         }, 650);
         return;
@@ -564,14 +698,14 @@ export const App: React.FC = () => {
 
       setGameState(clonedState);
     }, 390);
-  }, [diceRolling, gameState, currentOnlineRoomId]);
+  }, [diceRolling, gameState, currentOnlineRoomId, setAnimatingState]);
 
-  // Auto-Move when a human player only has 1 valid move or all valid moves are identical
+  // Auto-Move when a human player only has 1 valid move or all valid moves are stacked on the same board square
   useEffect(() => {
     if (screen !== 'game') return;
     if (currentOnlineRoomId) return;
     if (gameState.status !== 'playing') return;
-    if (isAnimatingRef.current || diceRolling) return;
+    if (isAnimating || isAnimatingRef.current || diceRolling) return;
     if (gameState.turnPhase !== 'MOVE') return;
 
     const currentPlayer = gameState.players[gameState.currentTurn];
@@ -583,29 +717,31 @@ export const App: React.FC = () => {
     if (validMoves.length === 1) {
       const timer = setTimeout(() => {
         handleSelectToken(validMoves[0]);
-      }, 280);
+      }, 380);
       return () => clearTimeout(timer);
     }
 
     const firstTokenStep = currentPlayer.tokens[validMoves[0]].step;
-    const allAtIdenticalStep = validMoves.every(
-      (idx: number) => currentPlayer.tokens[idx].step === firstTokenStep
-    );
+    // Only auto-move multiple tokens if they are stacked on the exact same board square (step >= 0).
+    // If multiple tokens are in the Home Yard (step === -1) when rolling a 6, let the player tap which yard piece to bring out!
+    const allStackedOnSameBoardSquare =
+      firstTokenStep >= 0 &&
+      validMoves.every((idx: number) => currentPlayer.tokens[idx].step === firstTokenStep);
 
-    if (allAtIdenticalStep) {
+    if (allStackedOnSameBoardSquare) {
       const timer = setTimeout(() => {
         handleSelectToken(validMoves[0]);
-      }, 300);
+      }, 380);
       return () => clearTimeout(timer);
     }
-  }, [screen, gameState, diceRolling, currentOnlineRoomId, handleSelectToken]);
+  }, [screen, gameState, diceRolling, isAnimating, currentOnlineRoomId, handleSelectToken]);
 
   // AI Automation Loop
   useEffect(() => {
     if (screen !== 'game') return;
     if (currentOnlineRoomId) return;
     if (gameState.status !== 'playing') return;
-    if (isAnimatingRef.current || diceRolling) return;
+    if (isAnimating || isAnimatingRef.current || diceRolling) return;
 
     const currentPlayer = gameState.players[gameState.currentTurn];
     if (!currentPlayer || !currentPlayer.active || !currentPlayer.isAI) return;
@@ -630,6 +766,7 @@ export const App: React.FC = () => {
     screen,
     gameState,
     diceRolling,
+    isAnimating,
     currentOnlineRoomId,
     handleRollDice,
     handleSelectToken,
@@ -637,6 +774,7 @@ export const App: React.FC = () => {
 
   // Start Match Handler
   const handleStartConfiguredMatch = (mode: GameMode, slots: SlotSetupConfig[]) => {
+    cancelOngoingAnimations();
     setSlotConfigs(slots);
     setCurrentOnlineRoomId(null);
     setMyOnlineColor(null);
@@ -654,9 +792,16 @@ export const App: React.FC = () => {
       })),
     });
 
-    // If Blue is an active human player, let Blue roll first just like Image 2
+    // Prefer Blue if active and human; otherwise first active human; otherwise first active player
     if (freshState.players.blue?.active && !freshState.players.blue.isAI) {
       freshState.currentTurn = 'blue';
+    } else {
+      const firstHuman = freshState.activeOrder.find(
+        (c) => freshState.players[c]?.active && !freshState.players[c]?.isAI
+      );
+      if (firstHuman) {
+        freshState.currentTurn = firstHuman;
+      }
     }
 
     setGameState(freshState);
@@ -699,6 +844,7 @@ export const App: React.FC = () => {
   // Online Room Actions
   const handleCreateOnlineRoom = (isPublic: boolean) => {
     socketRef.current?.emit('room:create', {
+      commanderName: profile.commanderName,
       playerName: profile.commanderName,
       mode: gameState.mode,
       isPublic,
@@ -708,12 +854,14 @@ export const App: React.FC = () => {
   const handleJoinOnlineRoom = (roomId: string) => {
     socketRef.current?.emit('room:join', {
       roomId,
+      commanderName: profile.commanderName,
       playerName: profile.commanderName,
     });
   };
 
   const handleQuickMatchmaking = () => {
     socketRef.current?.emit('room:quickmatch', {
+      commanderName: profile.commanderName,
       playerName: profile.commanderName,
       mode: gameState.mode,
     });
@@ -785,18 +933,20 @@ export const App: React.FC = () => {
   const currentPlayer = gameState.players[gameState.currentTurn];
   const isMyHumanTurn = currentOnlineRoomId
     ? gameState.currentTurn === myOnlineColor
-    : !currentPlayer.isAI;
+    : Boolean(currentPlayer && !currentPlayer.isAI);
 
   const canHumanRoll =
     isMyHumanTurn &&
     gameState.turnPhase === 'ROLL' &&
     !diceRolling &&
+    !isAnimating &&
     !isAnimatingRef.current;
 
   const canHumanMove =
     isMyHumanTurn &&
     gameState.turnPhase === 'MOVE' &&
     !diceRolling &&
+    !isAnimating &&
     !isAnimatingRef.current;
 
   // Player Pod layout for 4P Square vs 5P Pentagon vs 6P Hexagon
@@ -947,8 +1097,10 @@ export const App: React.FC = () => {
               }}
               className="android-btn-press flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-white/10 text-left"
             >
-              <Users className="w-6 h-6 text-[#FFCB05] shrink-0" />
-              <span className="text-xs font-extrabold uppercase leading-tight text-[#FFCB05]">
+              <div className="w-8 h-8 rounded-lg bg-[#0D5DB8] border-2 border-[#FFCB05] flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 text-[#FFCB05]" />
+              </div>
+              <span className="text-[11px] font-black uppercase leading-tight text-[#FFCB05]">
                 REMOVE
                 <br />
                 PLAYER(S)
@@ -1023,6 +1175,7 @@ export const App: React.FC = () => {
               type="button"
               onClick={() => {
                 soundEngine.playClick();
+                cancelOngoingAnimations();
                 setShowCornerMenu(false);
                 setScreen('home');
               }}
@@ -1100,6 +1253,7 @@ export const App: React.FC = () => {
           earnedXp={lastEarnedXp}
           onRematch={() => handleStartConfiguredMatch(gameState.mode, slotConfigs)}
           onBackToMenu={() => {
+            cancelOngoingAnimations();
             setShowVictoryModal(false);
             setScreen('home');
           }}

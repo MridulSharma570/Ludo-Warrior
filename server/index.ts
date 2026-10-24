@@ -103,14 +103,19 @@ async function startServer() {
       if (room.state.status !== 'playing') return;
 
       if (room.state.turnPhase === 'ROLL') {
-        const { rolled, validTokenIndices } = applyDiceRoll(room.state);
+        const rollingColor = room.state.currentTurn;
+        const { rolled, threeSixesForfeit, validTokenIndices } = applyDiceRoll(room.state);
         io.to(room.roomId).emit('game:rolled', {
+          rollingColor,
           rolled,
+          threeSixesForfeit,
+          validTokenIndices,
           state: room.state,
         });
 
         if (validTokenIndices.length > 0) {
           room.aiTimer = setTimeout(() => {
+            if (room.state.status !== 'playing' || room.state.turnPhase !== 'MOVE') return;
             const bestIdx = selectBestAIMove(room.state);
             const result = executeTokenMove(room.state, bestIdx);
             io.to(room.roomId).emit('game:moved', {
@@ -118,12 +123,20 @@ async function startServer() {
               state: room.state,
             });
             scheduleOnlineAITurnIfNeeded(room);
-          }, 900);
+          }, 950);
         } else {
           scheduleOnlineAITurnIfNeeded(room);
         }
+      } else if (room.state.turnPhase === 'MOVE') {
+        const bestIdx = selectBestAIMove(room.state);
+        const result = executeTokenMove(room.state, bestIdx);
+        io.to(room.roomId).emit('game:moved', {
+          result,
+          state: room.state,
+        });
+        scheduleOnlineAITurnIfNeeded(room);
       }
-    }, 850);
+    }, 950);
   };
 
   io.on('connection', (socket) => {
@@ -156,22 +169,23 @@ async function startServer() {
 
     socket.on(
       'room:create',
-      (payload: { commanderName: string; mode: GameMode; isPublic: boolean }) => {
+      (payload: { commanderName?: string; playerName?: string; mode: GameMode; isPublic: boolean }) => {
         leaveCurrentRooms();
         const roomId = generateRoomCode();
-        const hostName = payload.commanderName?.trim() || 'Player 1';
+        const hostName = (payload.commanderName || payload.playerName)?.trim() || 'Player 1';
         const mode = payload.mode || 'classic';
 
         const state = createInitialGameState({
           roomId,
           mode,
           playerConfigs: [
-            { color: 'red', name: hostName, isAI: false, aiDifficulty: 'hard', active: true },
-            { color: 'green', name: 'Green Bot', isAI: true, aiDifficulty: 'hard', active: true },
-            { color: 'yellow', name: 'Yellow Bot', isAI: true, aiDifficulty: 'hard', active: true },
-            { color: 'blue', name: 'Blue Bot', isAI: true, aiDifficulty: 'hard', active: true },
+            { color: 'blue', name: hostName, isAI: false, aiDifficulty: 'hard', active: true },
+            { color: 'red', name: 'Player 2', isAI: true, aiDifficulty: 'hard', active: true },
+            { color: 'green', name: 'Player 3', isAI: true, aiDifficulty: 'hard', active: true },
+            { color: 'yellow', name: 'Player 4', isAI: true, aiDifficulty: 'hard', active: true },
           ],
         });
+        state.currentTurn = 'blue';
 
         const room: OnlineRoom = {
           roomId,
@@ -179,103 +193,111 @@ async function startServer() {
           hostSocketId: socket.id,
           hostName,
           state,
-          socketToColor: new Map([[socket.id, 'red']]),
+          socketToColor: new Map([[socket.id, 'blue']]),
         };
 
         rooms.set(roomId, room);
         socket.join(roomId);
         socket.emit('room:joined', {
           roomId,
-          assignedColor: 'red',
+          assignedColor: 'blue',
           state: room.state,
         });
         io.emit('lobby:rooms', getPublicRoomSummaries());
       }
     );
 
-    socket.on('room:join', (payload: { roomId: string; commanderName: string }) => {
-      const code = (payload.roomId || '').trim().toUpperCase();
-      const room = rooms.get(code);
-      if (!room) return;
+    socket.on(
+      'room:join',
+      (payload: { roomId: string; commanderName?: string; playerName?: string }) => {
+        const code = (payload.roomId || '').trim().toUpperCase();
+        const room = rooms.get(code);
+        if (!room) return;
 
-      leaveCurrentRooms();
-
-      const availableColor =
-        TURN_ORDER.find((c) => room.state.players[c].isAI) ?? 'green';
-      const playerName = payload.commanderName?.trim() || `Player ${availableColor}`;
-
-      room.state.players[availableColor].isAI = false;
-      room.state.players[availableColor].name = playerName;
-      room.socketToColor.set(socket.id, availableColor);
-
-      socket.join(code);
-      socket.emit('room:joined', {
-        roomId: code,
-        assignedColor: availableColor,
-        state: room.state,
-      });
-
-      io.to(code).emit('game:state', room.state);
-      io.emit('lobby:rooms', getPublicRoomSummaries());
-    });
-
-    socket.on('room:quickmatch', (payload: { commanderName: string; mode: GameMode }) => {
-      let targetRoom: OnlineRoom | undefined;
-      for (const r of rooms.values()) {
-        if (r.isPublic && r.socketToColor.size < 4 && r.state.status === 'playing') {
-          targetRoom = r;
-          break;
-        }
-      }
-
-      if (targetRoom) {
         leaveCurrentRooms();
-        const availableColor =
-          TURN_ORDER.find((c) => targetRoom!.state.players[c].isAI) ?? 'green';
-        targetRoom.state.players[availableColor].isAI = false;
-        targetRoom.state.players[availableColor].name =
-          payload.commanderName?.trim() || 'Online Player';
-        targetRoom.socketToColor.set(socket.id, availableColor);
 
-        socket.join(targetRoom.roomId);
+        const availableColor =
+          TURN_ORDER.find((c) => room.state.players[c].isAI) ?? 'green';
+        const playerName =
+          (payload.commanderName || payload.playerName)?.trim() || `Player ${availableColor}`;
+
+        room.state.players[availableColor].isAI = false;
+        room.state.players[availableColor].name = playerName;
+        room.socketToColor.set(socket.id, availableColor);
+
+        socket.join(code);
         socket.emit('room:joined', {
-          roomId: targetRoom.roomId,
+          roomId: code,
           assignedColor: availableColor,
-          state: targetRoom.state,
-        });
-        io.to(targetRoom.roomId).emit('game:state', targetRoom.state);
-        io.emit('lobby:rooms', getPublicRoomSummaries());
-      } else {
-        const roomId = generateRoomCode();
-        const hostName = payload.commanderName?.trim() || 'Player 1';
-        const state = createInitialGameState({
-          roomId,
-          mode: payload.mode || 'classic',
-          playerConfigs: [
-            { color: 'red', name: hostName, isAI: false, aiDifficulty: 'hard', active: true },
-            { color: 'green', name: 'Green Bot', isAI: true, aiDifficulty: 'hard', active: true },
-            { color: 'yellow', name: 'Yellow Bot', isAI: true, aiDifficulty: 'hard', active: true },
-            { color: 'blue', name: 'Blue Bot', isAI: true, aiDifficulty: 'hard', active: true },
-          ],
-        });
-        const room: OnlineRoom = {
-          roomId,
-          isPublic: true,
-          hostSocketId: socket.id,
-          hostName,
-          state,
-          socketToColor: new Map([[socket.id, 'red']]),
-        };
-        rooms.set(roomId, room);
-        socket.join(roomId);
-        socket.emit('room:joined', {
-          roomId,
-          assignedColor: 'red',
           state: room.state,
         });
+
+        io.to(code).emit('game:state', room.state);
         io.emit('lobby:rooms', getPublicRoomSummaries());
       }
-    });
+    );
+
+    socket.on(
+      'room:quickmatch',
+      (payload: { commanderName?: string; playerName?: string; mode: GameMode }) => {
+        let targetRoom: OnlineRoom | undefined;
+        for (const r of rooms.values()) {
+          if (r.isPublic && r.socketToColor.size < 4 && r.state.status === 'playing') {
+            targetRoom = r;
+            break;
+          }
+        }
+
+        if (targetRoom) {
+          leaveCurrentRooms();
+          const availableColor =
+            TURN_ORDER.find((c) => targetRoom!.state.players[c].isAI) ?? 'green';
+          targetRoom.state.players[availableColor].isAI = false;
+          targetRoom.state.players[availableColor].name =
+            (payload.commanderName || payload.playerName)?.trim() || 'Online Player';
+          targetRoom.socketToColor.set(socket.id, availableColor);
+
+          socket.join(targetRoom.roomId);
+          socket.emit('room:joined', {
+            roomId: targetRoom.roomId,
+            assignedColor: availableColor,
+            state: targetRoom.state,
+          });
+          io.to(targetRoom.roomId).emit('game:state', targetRoom.state);
+          io.emit('lobby:rooms', getPublicRoomSummaries());
+        } else {
+          const roomId = generateRoomCode();
+          const hostName = (payload.commanderName || payload.playerName)?.trim() || 'Player 1';
+          const state = createInitialGameState({
+            roomId,
+            mode: payload.mode || 'classic',
+            playerConfigs: [
+              { color: 'blue', name: hostName, isAI: false, aiDifficulty: 'hard', active: true },
+              { color: 'red', name: 'Player 2', isAI: true, aiDifficulty: 'hard', active: true },
+              { color: 'green', name: 'Player 3', isAI: true, aiDifficulty: 'hard', active: true },
+              { color: 'yellow', name: 'Player 4', isAI: true, aiDifficulty: 'hard', active: true },
+            ],
+          });
+          state.currentTurn = 'blue';
+          const room: OnlineRoom = {
+            roomId,
+            isPublic: true,
+            hostSocketId: socket.id,
+            hostName,
+            state,
+            socketToColor: new Map([[socket.id, 'blue']]),
+          };
+          rooms.set(roomId, room);
+          socket.join(roomId);
+          socket.emit('room:joined', {
+            roomId,
+            assignedColor: 'blue',
+            state: room.state,
+          });
+          io.emit('lobby:rooms', getPublicRoomSummaries());
+        }
+      }
+    );
 
     socket.on('room:start_with_bots', (payload: { roomId: string }) => {
       const room = rooms.get(payload.roomId);
@@ -295,9 +317,13 @@ async function startServer() {
       const playerColor = room.socketToColor.get(socket.id);
       if (playerColor !== room.state.currentTurn) return;
 
-      const { rolled } = applyDiceRoll(room.state);
+      const rollingColor = room.state.currentTurn;
+      const { rolled, threeSixesForfeit, validTokenIndices } = applyDiceRoll(room.state);
       io.to(room.roomId).emit('game:rolled', {
+        rollingColor,
         rolled,
+        threeSixesForfeit,
+        validTokenIndices,
         state: room.state,
       });
 

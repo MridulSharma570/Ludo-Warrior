@@ -25,6 +25,15 @@ interface MatchSetupModalProps {
   onClose: () => void;
 }
 
+const DEFAULT_SLOT_LABELS: Record<FactionColor, string> = {
+  blue: 'Player 1',
+  red: 'Player 2',
+  green: 'Player 3',
+  yellow: 'Player 4',
+  purple: 'Player 5',
+  orange: 'Player 6',
+};
+
 export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
   initialMode,
   initialSlots,
@@ -38,8 +47,8 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
       return (
         found ?? {
           color: c,
-          name: `${FACTIONS[c].name} Bot`,
-          isAI: true,
+          name: DEFAULT_SLOT_LABELS[c],
+          isAI: c !== 'blue',
           aiDifficulty: 'hard' as AIDifficulty,
           active: false,
         }
@@ -52,29 +61,25 @@ export const MatchSetupModal: React.FC<MatchSetupModalProps> = ({
   const setQuickPlayerCount = (count: 2 | 3 | 4 | 5 | 6, allHuman: boolean = false) => {
     soundEngine.playClick();
     setSlots((prev) =>
-      TURN_ORDER_6P.map((c, idx) => {
+      TURN_ORDER_6P.map((c) => {
         const existing = prev.find((p) => p.color === c);
         let active = false;
         if (count === 2) {
-          active = c === 'red' || c === 'yellow';
+          active = c === 'blue' || c === 'green';
         } else if (count === 3) {
-          active = c === 'red' || c === 'green' || c === 'yellow';
+          active = c === 'blue' || c === 'red' || c === 'green';
         } else if (count === 4) {
-          active = c === 'red' || c === 'green' || c === 'yellow' || c === 'blue';
+          active = c === 'blue' || c === 'red' || c === 'green' || c === 'yellow';
         } else if (count === 5) {
           active = TURN_ORDER_5P.includes(c);
         } else {
           active = true;
         }
 
-        const isHuman = allHuman ? true : c === 'red';
+        const isHuman = allHuman ? true : c === 'blue';
         return {
           color: c,
-          name: isHuman
-            ? allHuman
-              ? `Player ${idx + 1}`
-              : existing?.name || 'You'
-            : `${FACTIONS[c].name} Bot`,
+          name: existing?.name || DEFAULT_SLOT_LABELS[c],
           isAI: !isHuman,
           aiDifficulty: 'hard',
           active,
